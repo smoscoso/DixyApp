@@ -33,10 +33,10 @@ export default function ModulesPage() {
     console.log("✅ ModulesPage: Usuario registrado:", name)
     setUserName(name)
 
-    // Obtener módulos asignados para estudiantes
+    // Obtener módulos asignados
     if (userRole === "student") {
-      const modules = JSON.parse(localStorage.getItem("assignedModules") || "[1,2,3]")
-      setAssignedModules(modules)
+      // Para estudiantes, obtener módulos desde la base de datos
+      fetchStudentModules(userId)
     } else {
       // Para docentes y usuarios legacy, mostrar todos los módulos
       setAssignedModules([1, 2, 3, 4, 5, 6])
@@ -55,6 +55,26 @@ export default function ModulesPage() {
       router.push("/")
     }
   }, [router])
+
+  const fetchStudentModules = async (studentId: string) => {
+    try {
+      const response = await fetch(`/api/student/modules?studentId=${studentId}`)
+      const data = await response.json()
+
+      if (response.ok && data.assignedModules) {
+        console.log("📚 Módulos asignados al estudiante:", data.assignedModules)
+        setAssignedModules(data.assignedModules)
+      } else {
+        console.error("Error al obtener módulos:", data.error)
+        // Fallback a módulos básicos
+        setAssignedModules([1, 2, 3])
+      }
+    } catch (error) {
+      console.error("Error al cargar módulos del estudiante:", error)
+      // Fallback a módulos básicos
+      setAssignedModules([1, 2, 3])
+    }
+  }
 
   if (isLoading) {
     return (

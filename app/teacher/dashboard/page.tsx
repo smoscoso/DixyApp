@@ -23,13 +23,10 @@ import {
   CheckCircle,
   AlertCircle,
   Copy,
+  Download,
 } from "lucide-react"
 import { Checkbox } from "@/components/ui/checkbox"
-import type { User as BaseUser } from "@/lib/models"
-
-type User = BaseUser & {
-  progress?: number
-}
+import type { User } from "@/lib/models"
 import { MODULE_INFO, DYSLEXIA_CONFIGS } from "@/lib/module-constants"
 
 export default function TeacherDashboard() {
@@ -203,6 +200,37 @@ export default function TeacherDashboard() {
     return students.filter((s) => s.hasKinestheticDyslexia || s.dyslexiaType === "kinestesica").length
   }
 
+  const downloadStudentsData = async () => {
+    const teacherId = localStorage.getItem("userId")
+    if (!teacherId) return
+
+    try {
+      setIsLoading(true)
+      const response = await fetch(`/api/teacher/export-students?teacherId=${teacherId}`)
+
+      if (response.ok) {
+        const blob = await response.blob()
+        const url = window.URL.createObjectURL(blob)
+        const a = document.createElement("a")
+        a.href = url
+        a.download = `estudiantes_${new Date().toISOString().split("T")[0]}.csv`
+        document.body.appendChild(a)
+        a.click()
+        window.URL.revokeObjectURL(url)
+        document.body.removeChild(a)
+        setSuccess("Datos descargados exitosamente")
+      } else {
+        const data = await response.json()
+        setError(data.error || "Error al descargar datos")
+      }
+    } catch (error) {
+      console.error("Error al descargar datos:", error)
+      setError("Error de conexión al descargar datos")
+    } finally {
+      setIsLoading(false)
+    }
+  }
+
   return (
     <div className="min-h-screen bg-gradient-to-br from-slate-50 via-blue-50 to-indigo-100">
       {/* Header */}
@@ -366,14 +394,33 @@ export default function TeacherDashboard() {
           </Card>
         )}
 
-        {/* Botón para crear estudiante */}
-        <div className="mb-8">
+        {/* Botones de acción */}
+        <div className="mb-8 flex flex-col sm:flex-row gap-4">
           <Button
             onClick={() => setShowCreateForm(!showCreateForm)}
             className="bg-gradient-to-r from-indigo-600 to-purple-600 hover:from-indigo-700 hover:to-purple-700 shadow-lg"
           >
             <Plus className="h-4 w-4 mr-2" />
             {showCreateForm ? "Cancelar" : "Crear Nuevo Estudiante"}
+          </Button>
+
+          <Button
+            onClick={downloadStudentsData}
+            disabled={isLoading || students.length === 0}
+            variant="outline"
+            className="bg-gradient-to-r from-green-50 to-emerald-50 hover:from-green-100 hover:to-emerald-100 border-green-200 text-green-700 hover:text-green-800"
+          >
+            {isLoading ? (
+              <>
+                <Loader2 className="h-4 w-4 mr-2 animate-spin" />
+                Descargando...
+              </>
+            ) : (
+              <>
+                <Download className="h-4 w-4 mr-2" />
+                Descargar Datos de Estudiantes
+              </>
+            )}
           </Button>
         </div>
 
