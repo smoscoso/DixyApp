@@ -48,7 +48,7 @@ export default function StudentLoginPage() {
         localStorage.setItem("assignedModules", JSON.stringify(data.user.assignedModules || []))
 
         // Redirigir al dashboard del estudiante
-        router.push("/student/dashboard")
+        router.push("/modules")
       } else {
         setError(data.error || "Error al iniciar sesión")
       }
@@ -92,7 +92,7 @@ export default function StudentLoginPage() {
             </div>
             <div>
               <h1 className="text-2xl font-bold bg-gradient-to-r from-emerald-600 to-cyan-600 bg-clip-text text-transparent">
-                DislexiaApp
+                DixyApp
               </h1>
               <p className="text-sm text-gray-600">Portal Estudiantil</p>
             </div>
