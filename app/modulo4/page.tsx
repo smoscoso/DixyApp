@@ -7,7 +7,7 @@ import Link from "next/link"
 import { Button } from "@/components/ui/button"
 import { Card, CardContent } from "@/components/ui/card"
 import { Progress } from "@/components/ui/progress"
-import { ArrowLeft, Play, Square, RotateCcw } from "lucide-react"
+import { ArrowLeft, RotateCcw, CheckCircle } from "lucide-react"
 import confetti from "canvas-confetti"
 import { useRouter } from "next/navigation"
 import { saveProgress } from "@/lib/actions"
@@ -15,12 +15,13 @@ import { saveProgress } from "@/lib/actions"
 export default function Modulo4Page() {
   const [currentLevel, setCurrentLevel] = useState(1)
   const [currentLetter, setCurrentLetter] = useState("")
-  const [isTracking, setIsTracking] = useState(false)
+  const [isDrawing, setIsDrawing] = useState(false)
   const [tracePoints, setTracePoints] = useState<{ x: number; y: number }[]>([])
   const [message, setMessage] = useState("")
   const [showSuccess, setShowSuccess] = useState(false)
   const [attempts, setAttempts] = useState(0)
   const [userId, setUserId] = useState<string | null>(null)
+  const [hasFinishedDrawing, setHasFinishedDrawing] = useState(false)
   const canvasRef = useRef<HTMLCanvasElement>(null)
   const [targetTrace, setTargetTrace] = useState<{ x: number; y: number }[]>([])
   const router = useRouter()
@@ -43,6 +44,7 @@ export default function Modulo4Page() {
     setMessage("")
     setShowSuccess(false)
     setAttempts(0)
+    setHasFinishedDrawing(false)
     generateTargetTrace(letters[currentLevel - 1])
   }, [currentLevel])
 
@@ -130,15 +132,91 @@ export default function Modulo4Page() {
     ctx.setLineDash([])
   }
 
-  const startTracing = () => {
-    setIsTracking(true)
-    setTracePoints([])
+  const handleMouseDown = (e: React.MouseEvent<HTMLCanvasElement>) => {
+    if (e.button === 0) {
+      // Click izquierdo
+      setIsDrawing(true)
+      setTracePoints([])
+      setHasFinishedDrawing(false)
+      setMessage("¡Dibujando! Mantén presionado y sigue la línea punteada...")
+
+      const canvas = canvasRef.current
+      if (!canvas) return
+
+      const rect = canvas.getBoundingClientRect()
+      const x = e.clientX - rect.left
+      const y = e.clientY - rect.top
+
+      setTracePoints([{ x, y }])
+    }
   }
 
-  const stopTracing = async () => {
-    if (!userId) return
+  const handleMouseMove = (e: React.MouseEvent<HTMLCanvasElement>) => {
+    if (!isDrawing) return
 
-    setIsTracking(false)
+    const canvas = canvasRef.current
+    if (!canvas) return
+
+    const rect = canvas.getBoundingClientRect()
+    const x = e.clientX - rect.left
+    const y = e.clientY - rect.top
+
+    setTracePoints((prev) => [...prev, { x, y }])
+  }
+
+  const handleMouseUp = () => {
+    if (isDrawing) {
+      setIsDrawing(false)
+      setHasFinishedDrawing(true)
+      setMessage("¡Dibujo completado! Ahora haz clic en 'Terminar' para verificar tu trazo.")
+    }
+  }
+
+  const handleTouchStart = (e: React.TouchEvent<HTMLCanvasElement>) => {
+    e.preventDefault()
+    setIsDrawing(true)
+    setTracePoints([])
+    setHasFinishedDrawing(false)
+    setMessage("¡Dibujando! Mantén presionado y sigue la línea punteada...")
+
+    const canvas = canvasRef.current
+    if (!canvas) return
+
+    const rect = canvas.getBoundingClientRect()
+    const touch = e.touches[0]
+    const x = touch.clientX - rect.left
+    const y = touch.clientY - rect.top
+
+    setTracePoints([{ x, y }])
+  }
+
+  const handleTouchMove = (e: React.TouchEvent<HTMLCanvasElement>) => {
+    e.preventDefault()
+    if (!isDrawing) return
+
+    const canvas = canvasRef.current
+    if (!canvas) return
+
+    const rect = canvas.getBoundingClientRect()
+    const touch = e.touches[0]
+    const x = touch.clientX - rect.left
+    const y = touch.clientY - rect.top
+
+    setTracePoints((prev) => [...prev, { x, y }])
+  }
+
+  const handleTouchEnd = (e: React.TouchEvent<HTMLCanvasElement>) => {
+    e.preventDefault()
+    if (isDrawing) {
+      setIsDrawing(false)
+      setHasFinishedDrawing(true)
+      setMessage("¡Dibujo completado! Ahora haz clic en 'Terminar' para verificar tu trazo.")
+    }
+  }
+
+  const finishDrawing = async () => {
+    if (!userId || !hasFinishedDrawing) return
+
     setAttempts(attempts + 1)
 
     // Analizar la precisión del trazo
@@ -172,7 +250,6 @@ export default function Modulo4Page() {
   const calculateTraceAccuracy = (): number => {
     if (tracePoints.length === 0 || targetTrace.length === 0) return 0
 
-    const totalDistance = 0
     let minDistanceSum = 0
 
     for (const userPoint of tracePoints) {
@@ -195,30 +272,8 @@ export default function Modulo4Page() {
     setTracePoints([])
     setMessage("")
     setShowSuccess(false)
-  }
-
-  const handleCanvasInteraction = (e: React.MouseEvent<HTMLCanvasElement> | React.TouchEvent<HTMLCanvasElement>) => {
-    if (!isTracking) return
-
-    const canvas = canvasRef.current
-    if (!canvas) return
-
-    const rect = canvas.getBoundingClientRect()
-    let clientX: number, clientY: number
-
-    if ("touches" in e) {
-      e.preventDefault()
-      clientX = e.touches[0].clientX
-      clientY = e.touches[0].clientY
-    } else {
-      clientX = e.clientX
-      clientY = e.clientY
-    }
-
-    const x = clientX - rect.left
-    const y = clientY - rect.top
-
-    setTracePoints((prev) => [...prev, { x, y }])
+    setHasFinishedDrawing(false)
+    setIsDrawing(false)
   }
 
   const goToNextLevel = () => {
@@ -284,9 +339,14 @@ export default function Modulo4Page() {
                   ref={canvasRef}
                   width={400}
                   height={300}
-                  className="border-4 border-orange-300 rounded-xl bg-white cursor-pointer w-full max-w-md mx-auto block"
-                  onMouseMove={handleCanvasInteraction}
-                  onTouchMove={handleCanvasInteraction}
+                  className="border-4 border-orange-300 rounded-xl bg-white cursor-crosshair w-full max-w-md mx-auto block"
+                  onMouseDown={handleMouseDown}
+                  onMouseMove={handleMouseMove}
+                  onMouseUp={handleMouseUp}
+                  onMouseLeave={handleMouseUp}
+                  onTouchStart={handleTouchStart}
+                  onTouchMove={handleTouchMove}
+                  onTouchEnd={handleTouchEnd}
                   style={{ touchAction: "none" }}
                 />
               </div>
@@ -300,23 +360,19 @@ export default function Modulo4Page() {
                   <RotateCcw className="h-5 w-5" />
                   Limpiar
                 </Button>
-                {!isTracking ? (
-                  <Button
-                    onClick={startTracing}
-                    className="bg-gradient-to-r from-orange-500 to-red-600 hover:from-orange-600 hover:to-red-700 rounded-xl px-8 py-3 text-lg shadow-lg flex items-center gap-2"
-                  >
-                    <Play className="h-5 w-5" />
-                    ¡Comenzar a Trazar!
-                  </Button>
-                ) : (
-                  <Button
-                    onClick={stopTracing}
-                    className="bg-gradient-to-r from-green-500 to-teal-600 hover:from-green-600 hover:to-teal-700 rounded-xl px-8 py-3 text-lg shadow-lg flex items-center gap-2"
-                  >
-                    <Square className="h-5 w-5" />
-                    ¡Terminar!
-                  </Button>
-                )}
+
+                <Button
+                  onClick={finishDrawing}
+                  disabled={!hasFinishedDrawing}
+                  className={`rounded-xl px-8 py-3 text-lg shadow-lg flex items-center gap-2 ${
+                    hasFinishedDrawing
+                      ? "bg-gradient-to-r from-green-500 to-teal-600 hover:from-green-600 hover:to-teal-700"
+                      : "bg-gray-400 cursor-not-allowed"
+                  }`}
+                >
+                  <CheckCircle className="h-5 w-5" />
+                  Terminar
+                </Button>
               </div>
             </CardContent>
           </Card>
@@ -343,20 +399,20 @@ export default function Modulo4Page() {
 
               <ul className="space-y-3 mb-6">
                 <li className="flex items-start gap-2 bg-white p-3 rounded-lg shadow">
-                  <span className="text-green-500 text-xl mt-1">✓</span>
-                  <span className="text-lg">Usa tu dedo o mouse para trazar</span>
+                  <span className="text-green-500 text-xl mt-1">1️⃣</span>
+                  <span className="text-lg">Haz clic izquierdo y mantén presionado</span>
                 </li>
                 <li className="flex items-start gap-2 bg-white p-3 rounded-lg shadow">
-                  <span className="text-green-500 text-xl mt-1">✓</span>
-                  <span className="text-lg">Sigue la línea punteada</span>
+                  <span className="text-green-500 text-xl mt-1">2️⃣</span>
+                  <span className="text-lg">Arrastra siguiendo la línea punteada</span>
                 </li>
                 <li className="flex items-start gap-2 bg-white p-3 rounded-lg shadow">
-                  <span className="text-green-500 text-xl mt-1">✓</span>
-                  <span className="text-lg">Ve del punto verde al rojo</span>
+                  <span className="text-green-500 text-xl mt-1">3️⃣</span>
+                  <span className="text-lg">Suelta el botón al terminar</span>
                 </li>
                 <li className="flex items-start gap-2 bg-white p-3 rounded-lg shadow">
-                  <span className="text-green-500 text-xl mt-1">✓</span>
-                  <span className="text-lg">¡Haz movimientos firmes y seguros!</span>
+                  <span className="text-green-500 text-xl mt-1">4️⃣</span>
+                  <span className="text-lg">¡Haz clic en "Terminar" para verificar!</span>
                 </li>
               </ul>
 
@@ -365,7 +421,9 @@ export default function Modulo4Page() {
                   className={`p-6 rounded-xl text-center text-lg ${
                     showSuccess
                       ? "bg-green-100 text-green-800 border-4 border-green-400"
-                      : "bg-yellow-100 text-yellow-800 border-4 border-yellow-400"
+                      : hasFinishedDrawing
+                        ? "bg-blue-100 text-blue-800 border-4 border-blue-400"
+                        : "bg-yellow-100 text-yellow-800 border-4 border-yellow-400"
                   }`}
                 >
                   {message}

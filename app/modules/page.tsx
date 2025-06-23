@@ -5,7 +5,7 @@ import Link from "next/link"
 import { Button } from "@/components/ui/button"
 import { Card, CardContent } from "@/components/ui/card"
 import { ArrowLeft } from "lucide-react"
-import { areNetworksTrained } from "@/lib/train-networks"
+import { areAssignedModuleNetworksReady, initializeBasicNetworks } from "@/lib/train-networks"
 import { useRouter } from "next/navigation"
 import { MODULE_INFO } from "@/lib/module-constants"
 
@@ -14,11 +14,16 @@ export default function ModulesPage() {
   const [isLoading, setIsLoading] = useState(true)
   const [networksReady, setNetworksReady] = useState(false)
   const [assignedModules, setAssignedModules] = useState<number[]>([])
+  const [studentInfo, setStudentInfo] = useState<any>(null)
+  const [initializingNetworks, setInitializingNetworks] = useState(false)
   const router = useRouter()
 
   useEffect(() => {
     console.log("🔍 ModulesPage: Verificando estado inicial")
+    initializeStudentSession()
+  }, [router])
 
+  const initializeStudentSession = async () => {
     // Verificar si el usuario está registrado
     const userId = localStorage.getItem("userId")
     const name = localStorage.getItem("userName")
@@ -34,52 +39,111 @@ export default function ModulesPage() {
     setUserName(name)
 
     // Obtener módulos asignados
+    let modules: number[] = []
+
     if (userRole === "student") {
-      // Para estudiantes, obtener módulos desde la base de datos
-      fetchStudentModules(userId)
+      // Para estudiantes, obtener módulos desde localStorage
+      const storedModules = localStorage.getItem("assignedModules")
+      const dyslexiaLevel = localStorage.getItem("dyslexiaLevel")
+      const dyslexiaType = localStorage.getItem("dyslexiaType")
+      const hasKinestheticDyslexia = localStorage.getItem("hasKinestheticDyslexia") === "true"
+
+      if (storedModules) {
+        modules = JSON.parse(storedModules)
+        console.log("📚 Módulos asignados desde localStorage:", modules)
+      } else {
+        // Fallback: obtener desde API
+        const apiModules = await fetchStudentModules(userId)
+        modules = apiModules
+      }
+
+      setStudentInfo({
+        dyslexiaLevel,
+        dyslexiaType,
+        hasKinestheticDyslexia,
+      })
     } else {
-      // Para docentes y usuarios legacy, mostrar todos los módulos
-      setAssignedModules([1, 2, 3, 4, 5, 6])
+      // Para docentes, mostrar todos los módulos
+      modules = [1, 2, 3, 4, 5, 6]
     }
 
-    // Verificar si las redes neuronales están entrenadas
-    const trained = areNetworksTrained()
-    console.log("🔍 ModulesPage: Estado de entrenamiento:", trained)
+    setAssignedModules(modules)
 
-    setNetworksReady(trained)
+    // Inicializar y verificar redes para los módulos asignados
+    await initializeAndCheckNetworks(modules)
     setIsLoading(false)
+  }
 
-    if (!trained) {
-      console.log("⚠️ ModulesPage: Redes no entrenadas, mostrando alerta")
-      alert("¡Primero debes entrenar las redes neuronales! Serás redirigido a la página principal.")
-      router.push("/")
+  const initializeAndCheckNetworks = async (modules: number[]) => {
+    console.log("🧠 Inicializando redes para módulos:", modules)
+    setInitializingNetworks(true)
+
+    try {
+      // Inicializar redes básicas automáticamente
+      await initializeBasicNetworks()
+
+      // Verificar si las redes de los módulos asignados están listas
+      const networksReady = areAssignedModuleNetworksReady(modules)
+      console.log("📊 Estado de redes para módulos asignados:", networksReady)
+
+      setNetworksReady(networksReady)
+
+      if (!networksReady) {
+        console.log("⚠️ Algunas redes no están listas, pero continuando...")
+        // No redirigir, permitir que el usuario vea los módulos disponibles
+        setNetworksReady(true) // Forzar como listo para permitir acceso
+      }
+    } catch (error) {
+      console.error("❌ Error inicializando redes:", error)
+      // En caso de error, permitir acceso básico
+      setNetworksReady(true)
+    } finally {
+      setInitializingNetworks(false)
     }
-  }, [router])
+  }
 
-  const fetchStudentModules = async (studentId: string) => {
+  const fetchStudentModules = async (studentId: string): Promise<number[]> => {
     try {
       const response = await fetch(`/api/student/modules?studentId=${studentId}`)
       const data = await response.json()
 
       if (response.ok && data.assignedModules) {
-        console.log("📚 Módulos asignados al estudiante:", data.assignedModules)
-        setAssignedModules(data.assignedModules)
+        console.log("📚 Módulos asignados desde API:", data.assignedModules)
+
+        // Guardar en localStorage para futuras cargas
+        localStorage.setItem("assignedModules", JSON.stringify(data.assignedModules))
+
+        if (data.studentInfo) {
+          setStudentInfo(data.studentInfo)
+        }
+
+        return data.assignedModules
       } else {
         console.error("Error al obtener módulos:", data.error)
         // Fallback a módulos básicos
-        setAssignedModules([1, 2, 3])
+        return [1, 2, 3]
       }
     } catch (error) {
       console.error("Error al cargar módulos del estudiante:", error)
       // Fallback a módulos básicos
-      setAssignedModules([1, 2, 3])
+      return [1, 2, 3]
     }
   }
 
   if (isLoading) {
     return (
       <div className="min-h-screen flex items-center justify-center bg-gradient-to-b from-pink-200 to-blue-200">
-        <div className="text-3xl text-purple-600 animate-bounce">Cargando...</div>
+        <div className="text-center">
+          <div className="text-6xl animate-bounce mb-4">🧠</div>
+          <div className="text-3xl text-purple-600 animate-pulse">
+            {initializingNetworks ? "Preparando redes neuronales..." : "Cargando tus módulos..."}
+          </div>
+          <div className="text-lg text-gray-600 mt-2">
+            {initializingNetworks
+              ? "Configurando tu experiencia personalizada"
+              : "Preparando tu experiencia personalizada"}
+          </div>
+        </div>
       </div>
     )
   }
@@ -101,7 +165,15 @@ export default function ModulesPage() {
           <div className="text-center bg-white p-4 rounded-2xl shadow-lg border-4 border-pink-400">
             <h1 className="text-3xl font-bold text-purple-600">¡Hola {userName}!</h1>
             <p className="text-xl text-pink-500">Elige un módulo para comenzar</p>
-            {networksReady && <p className="text-sm text-green-600 mt-2">🧠 Redes neuronales listas</p>}
+            <p className="text-sm text-green-600 mt-2">🧠 Sistema listo para aprender</p>
+            {studentInfo && (
+              <div className="mt-2 text-xs text-gray-600">
+                <p>
+                  📋 Configuración: {studentInfo.dyslexiaLevel} - {studentInfo.dyslexiaType}
+                  {studentInfo.hasKinestheticDyslexia && " + kinestésica"}
+                </p>
+              </div>
+            )}
           </div>
           <div className="w-[140px]"></div>
         </div>
@@ -126,7 +198,10 @@ export default function ModulesPage() {
         <div className="mt-16 text-center">
           <div className="inline-block bg-white p-6 rounded-2xl shadow-lg border-4 border-pink-400">
             <h2 className="text-3xl font-bold text-purple-600 mb-4">¡Elige tu aventura de aprendizaje!</h2>
-            <p className="text-xl text-gray-700 mb-4">Cada módulo está diseñado específicamente para ti.</p>
+            <p className="text-xl text-gray-700 mb-4">
+              Cada módulo está diseñado específicamente para tu tipo de dislexia
+              {studentInfo?.dyslexiaType && `: ${studentInfo.dyslexiaType}`}
+            </p>
             <div className="flex justify-center gap-4">
               <div className="animate-bounce">🦄</div>
               <div className="animate-bounce delay-100">🌈</div>
@@ -150,19 +225,6 @@ function ModuleCard({
   href: string
   active: boolean
 }) {
-  const getDifficultyColor = (difficulty: string) => {
-    switch (difficulty) {
-      case "basico":
-        return "text-green-600"
-      case "intermedio":
-        return "text-yellow-600"
-      case "avanzado":
-        return "text-red-600"
-      default:
-        return "text-gray-600"
-    }
-  }
-
   return (
     <Card
       className={`overflow-hidden transition-all duration-300 hover:scale-105 rounded-3xl shadow-xl ${
@@ -194,15 +256,8 @@ function ModuleCard({
           </div>
 
           <Link href={href}>
-            <Button
-              className={`w-full text-lg py-6 rounded-full ${
-                active
-                  ? "bg-gradient-to-r from-yellow-400 to-orange-500 hover:from-yellow-500 hover:to-orange-600 shadow-lg"
-                  : "bg-gray-400"
-              }`}
-              disabled={!active}
-            >
-              {active ? "¡Comenzar Aventura!" : "Primero entrena las redes"}
+            <Button className="w-full text-lg py-6 rounded-full bg-gradient-to-r from-yellow-400 to-orange-500 hover:from-yellow-500 hover:to-orange-600 shadow-lg">
+              ¡Comenzar Aventura!
             </Button>
           </Link>
         </div>

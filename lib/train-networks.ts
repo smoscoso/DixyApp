@@ -147,6 +147,7 @@ async function trainModule3Network(onProgress: (percent: number, message: string
   }
 }
 
+// Función principal para verificar si las redes están entrenadas
 export function areNetworksTrained(): boolean {
   if (typeof window === "undefined") {
     console.log("⚠️ areNetworksTrained: Ejecutándose en servidor, retornando false")
@@ -174,6 +175,123 @@ export function areNetworksTrained(): boolean {
   } catch (error) {
     console.error("❌ areNetworksTrained: Error verificando estado de las redes:", error)
     return false
+  }
+}
+
+// Nueva función para verificar redes específicas por módulos asignados
+export function areAssignedModuleNetworksReady(assignedModules: number[]): boolean {
+  if (typeof window === "undefined") {
+    console.log("⚠️ areAssignedModuleNetworksReady: Ejecutándose en servidor")
+    return false
+  }
+
+  console.log("🔍 Verificando redes para módulos asignados:", assignedModules)
+
+  try {
+    for (const moduleId of assignedModules) {
+      const isReady = checkModuleNetworkReady(moduleId)
+      console.log(`📊 Módulo ${moduleId}: ${isReady ? "✅ Listo" : "❌ No listo"}`)
+
+      if (!isReady) {
+        console.log(`❌ Módulo ${moduleId} no está listo`)
+        return false
+      }
+    }
+
+    console.log("✅ Todas las redes de módulos asignados están listas")
+    return true
+  } catch (error) {
+    console.error("❌ Error verificando redes de módulos asignados:", error)
+    return false
+  }
+}
+
+// Función para verificar si la red de un módulo específico está lista
+function checkModuleNetworkReady(moduleId: number): boolean {
+  switch (moduleId) {
+    case 1:
+      // Módulo 1 requiere pesos pre-entrenados
+      return localStorage.getItem("module1WeightsAvailable") === "true"
+    case 2:
+      // Módulo 2 requiere red de reconocimiento de sonidos
+      return localStorage.getItem("soundNetworkTrained") === "true"
+    case 3:
+      // Módulo 3 requiere red de reconocimiento de palabras
+      return localStorage.getItem("wordNetworkTrained") === "true"
+    case 4:
+    case 5:
+    case 6:
+      // Módulos 4, 5, 6 no requieren redes neuronales específicas
+      return true
+    default:
+      console.warn(`⚠️ Módulo ${moduleId} no reconocido`)
+      return false
+  }
+}
+
+// Función para inicializar redes básicas automáticamente
+export async function initializeBasicNetworks(): Promise<void> {
+  console.log("🚀 Inicializando redes básicas...")
+
+  try {
+    // Marcar módulos básicos como disponibles si no requieren entrenamiento
+    if (!localStorage.getItem("soundNetworkTrained")) {
+      console.log("🔊 Inicializando red de sonidos básica...")
+      // Crear una red básica para módulo 2
+      const soundNetwork = new SoundRecognitionNetwork(100, 50, 20)
+      soundNetwork.loadWordFormationData()
+
+      localStorage.setItem("soundNetworkTrained", "true")
+      localStorage.setItem(
+        "soundNetworkData",
+        JSON.stringify({
+          weightsIH: soundNetwork.weightsIH,
+          weightsHO: soundNetwork.weightsHO,
+          biasH: soundNetwork.biasH,
+          biasO: soundNetwork.biasO,
+          wordDictionary: soundNetwork.wordDictionary,
+          inputNodes: soundNetwork.inputNodes,
+          hiddenNodes: soundNetwork.hiddenNodes,
+          outputNodes: soundNetwork.outputNodes,
+        }),
+      )
+      console.log("✅ Red de sonidos inicializada")
+    }
+
+    if (!localStorage.getItem("wordNetworkTrained")) {
+      console.log("📝 Inicializando red de palabras básica...")
+      // Crear una red básica para módulo 3
+      const wordNetwork = new WordRecognitionNetwork(200, 100, 20)
+      wordNetwork.loadDyslexiaWords()
+
+      localStorage.setItem("wordNetworkTrained", "true")
+      localStorage.setItem(
+        "wordNetworkData",
+        JSON.stringify({
+          weightsIH: wordNetwork.weightsIH,
+          weightsHO: wordNetwork.weightsHO,
+          biasH: wordNetwork.biasH,
+          biasO: wordNetwork.biasO,
+          dyslexiaWords: wordNetwork.dyslexiaWords,
+          wordDictionary: wordNetwork.wordDictionary,
+          inputNodes: wordNetwork.inputNodes,
+          hiddenNodes: wordNetwork.hiddenNodes,
+          outputNodes: wordNetwork.outputNodes,
+        }),
+      )
+      console.log("✅ Red de palabras inicializada")
+    }
+
+    // Verificar si el módulo 1 tiene pesos
+    const module1Available = await checkModule1WeightsAvailable()
+    if (module1Available) {
+      markModule1Available()
+      console.log("✅ Módulo 1 marcado como disponible")
+    }
+
+    console.log("🎉 Redes básicas inicializadas correctamente")
+  } catch (error) {
+    console.error("❌ Error inicializando redes básicas:", error)
   }
 }
 
