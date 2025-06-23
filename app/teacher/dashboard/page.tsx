@@ -28,6 +28,7 @@ import {
 import { Checkbox } from "@/components/ui/checkbox"
 import type { User } from "@/lib/models"
 import { MODULE_INFO, DYSLEXIA_CONFIGS } from "@/lib/module-constants"
+import DashboardCharts from "@/components/dashboard-charts"
 
 export default function TeacherDashboard() {
   const [students, setStudents] = useState<User[]>([])
@@ -330,6 +331,15 @@ export default function TeacherDashboard() {
               </div>
             </CardContent>
           </Card>
+        </div>
+
+        {/* Sección de Gráficas */}
+        <div className="mb-8">
+          <h2 className="text-2xl font-bold text-gray-900 mb-6 flex items-center gap-2">
+            <TrendingUp className="h-6 w-6 text-indigo-600" />
+            Análisis y Estadísticas Detalladas
+          </h2>
+          <DashboardCharts students={students} />
         </div>
 
         {/* Mensajes de estado */}
