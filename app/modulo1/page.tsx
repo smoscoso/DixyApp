@@ -220,8 +220,8 @@ export default function Modulo1Page() {
   // Ejemplos visuales de letras para ayudar a los niños
   const letterExamples: Record<string, boolean[][]> = {
     A: [
-      [false, false, true, false, false],
-      [false, true, false, true, false],
+      [true, true, true, true, true],
+      [true, false, false, false, true],
       [true, false, false, false, true],
       [true, true, true, true, true],
       [true, false, false, false, true],
