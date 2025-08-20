@@ -16,10 +16,10 @@ export default class NeuralNetwork {
   betaLeakyRelu: number
 
   // Pesos y bias (matrices)
-  weightsIH: number[][] // w_oculta en Python
-  weightsHO: number[][] // w_salida en Python
-  biasH: number[] // b_oculta en Python
-  biasO: number[] // b_salida en Python
+  weightsIH!: number[][] // w_oculta en Python
+  weightsHO!: number[][] // w_salida en Python
+  biasH!: number[] // b_oculta en Python
+  biasO!: number[] // b_salida en Python
 
   // Variables para momentum
   deltaWeightsIHPrev: number[][]

@@ -14,10 +14,10 @@ export default class WordRecognitionNetwork {
   beta: number
 
   // Pesos y bias
-  weightsIH: number[][]
-  weightsHO: number[][]
-  biasH: number[]
-  biasO: number[]
+  weightsIH!: number[][]
+  weightsHO!: number[][]
+  biasH!: number[]
+  biasO!: number[]
 
   // Variables para momentum
   deltaWeightsIHPrev: number[][]

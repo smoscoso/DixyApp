@@ -18,7 +18,7 @@ export default function HomePage() {
               </div>
               <div>
                 <h1 className="text-2xl font-bold bg-gradient-to-r from-indigo-600 to-purple-600 bg-clip-text text-transparent">
-                  DixyApp
+                  DislexiaApp
                 </h1>
                 <p className="text-xs text-gray-500">Educación Inteligente</p>
               </div>
@@ -260,7 +260,7 @@ export default function HomePage() {
               <div className="flex items-center space-x-3 mb-4">
                 <Brain className="h-8 w-8 text-indigo-400" />
                 <div>
-                  <h5 className="text-xl font-bold">DixyApp</h5>
+                  <h5 className="text-xl font-bold">DislexiaApp</h5>
                   <p className="text-sm text-gray-400">Educación Inteligente</p>
                 </div>
               </div>
@@ -299,7 +299,7 @@ export default function HomePage() {
             </div>
           </div>
           <div className="border-t border-gray-800 mt-8 pt-8 text-center text-gray-400">
-            <p>&copy; 2024 DixyApp. Todos los derechos reservados.</p>
+            <p>&copy; 2024 DislexiaApp. Todos los derechos reservados.</p>
           </div>
         </div>
       </footer>

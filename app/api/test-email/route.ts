@@ -12,7 +12,7 @@ export async function POST(request: NextRequest) {
     console.log("🧪 Probando envío de email a:", email)
 
     const testHtml = `
-      <h1>Prueba de Email - DixyApp</h1>
+      <h1>Prueba de Email - Dislexia App</h1>
       <p>Este es un email de prueba para verificar la configuración.</p>
       <p>Si recibes este mensaje, la configuración de email está funcionando correctamente.</p>
       <p>Fecha: ${new Date().toLocaleString()}</p>
@@ -20,7 +20,7 @@ export async function POST(request: NextRequest) {
 
     const emailSent = await sendEmail({
       to: email,
-      subject: "🧪 Prueba de Email - DixyApp",
+      subject: "🧪 Prueba de Email - Dislexia App",
       html: testHtml,
     })
 

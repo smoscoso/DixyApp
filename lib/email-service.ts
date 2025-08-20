@@ -68,7 +68,7 @@ export async function sendEmail({ to, subject, html }: EmailOptions): Promise<bo
     }
 
     const mailOptions = {
-      from: `"DixyApp" <${emailUser}>`,
+      from: `"Dislexia App" <${emailUser}>`,
       to,
       subject,
       html,
@@ -103,7 +103,7 @@ export function createPasswordResetEmailTemplate(resetUrl: string, userEmail: st
     <head>
       <meta charset="UTF-8">
       <meta name="viewport" content="width=device-width, initial-scale=1.0">
-      <title>Recuperar Contraseña - DixyApp</title>
+      <title>Recuperar Contraseña - Dislexia App</title>
       <style>
         body { 
           font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif; 
@@ -170,7 +170,7 @@ export function createPasswordResetEmailTemplate(resetUrl: string, userEmail: st
     <body>
       <div class="container">
         <div class="header">
-          <div class="logo">🧠 DixyApp</div>
+          <div class="logo">🧠 Dislexia App</div>
           <h1>Recuperar Contraseña</h1>
         </div>
         
@@ -200,12 +200,12 @@ export function createPasswordResetEmailTemplate(resetUrl: string, userEmail: st
           
           <p>Si tienes alguna pregunta o problema, no dudes en contactarnos.</p>
           
-          <p>¡Gracias por usar DixyApp!</p>
+          <p>¡Gracias por usar Dislexia App!</p>
         </div>
         
         <div class="footer">
           <p>Este es un email automático, por favor no respondas a este mensaje.</p>
-          <p>&copy; 2024 DixyApp. Todos los derechos reservados.</p>
+          <p>&copy; 2024 Dislexia App. Todos los derechos reservados.</p>
         </div>
       </div>
     </body>

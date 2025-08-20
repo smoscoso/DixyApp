@@ -11,6 +11,7 @@ import { useRouter } from "next/navigation"
 import { saveProgress } from "@/lib/actions"
 import type NeuralNetworkCompatible from "@/lib/neural-network-compatible"
 import { loadModule1Weights, getModule1WeightsInfo } from "@/lib/load-module1-weights"
+import { hasModuleAccess, getAssignedModules, isStudent } from "@/lib/module-access-control"
 
 export default function Modulo1Page() {
   const [currentLevel, setCurrentLevel] = useState(1)
@@ -35,6 +36,18 @@ export default function Modulo1Page() {
         return
       }
       setUserId(id)
+
+      // Verificar acceso al módulo si es estudiante
+      if (isStudent()) {
+        const assignedModules = getAssignedModules()
+        if (!hasModuleAccess(assignedModules, 1)) {
+          console.log("❌ Acceso denegado al Módulo 1")
+          alert("No tienes acceso a este módulo. Contacta con tu docente.")
+          router.push("/modules")
+          return
+        }
+        console.log("✅ Acceso autorizado al Módulo 1")
+      }
 
       try {
         setLoadingMessage("Verificando pesos del Módulo 1...")
@@ -220,8 +233,8 @@ export default function Modulo1Page() {
   // Ejemplos visuales de letras para ayudar a los niños
   const letterExamples: Record<string, boolean[][]> = {
     A: [
-      [true, true, true, true, true],
-      [true, false, false, false, true],
+      [false, false, true, false, false],
+      [false, true, false, true, false],
       [true, false, false, false, true],
       [true, true, true, true, true],
       [true, false, false, false, true],

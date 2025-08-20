@@ -3,231 +3,275 @@
 import type React from "react"
 
 import { useState } from "react"
-import Link from "next/link"
 import { useRouter } from "next/navigation"
+import Link from "next/link"
 import { Button } from "@/components/ui/button"
-import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
 import { Input } from "@/components/ui/input"
-import { Label } from "@/components/ui/label"
+import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
 import { Alert, AlertDescription } from "@/components/ui/alert"
-import { ArrowLeft, BookOpen, Eye, EyeOff, User, Lock, Loader2, CheckCircle } from "lucide-react"
+import { Eye, EyeOff, User, Lock, BookOpen, ArrowLeft, CheckCircle, AlertCircle } from "lucide-react"
 
 export default function StudentLoginPage() {
-  const [formData, setFormData] = useState({
-    username: "",
-    password: "",
-  })
+  const [username, setUsername] = useState("")
+  const [password, setPassword] = useState("")
+  const [showPassword, setShowPassword] = useState(false)
   const [error, setError] = useState("")
   const [isLoading, setIsLoading] = useState(false)
-  const [showPassword, setShowPassword] = useState(false)
+  const [validationErrors, setValidationErrors] = useState<{ username?: string; password?: string }>({})
   const router = useRouter()
+
+  const validateForm = () => {
+    const errors: { username?: string; password?: string } = {}
+
+    if (!username.trim()) {
+      errors.username = "El nombre de usuario es requerido"
+    } else if (username.length < 2) {
+      errors.username = "El nombre de usuario debe tener al menos 2 caracteres"
+    }
+
+    if (!password) {
+      errors.password = "La contraseña es requerida"
+    } else if (password.length < 3) {
+      errors.password = "La contraseña debe tener al menos 3 caracteres"
+    }
+
+    setValidationErrors(errors)
+    return Object.keys(errors).length === 0
+  }
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault()
-    setError("")
+
+    if (!validateForm()) {
+      return
+    }
+
     setIsLoading(true)
+    setError("")
 
     try {
+      console.log("🔐 Intentando login de estudiante...")
+
       const response = await fetch("/api/auth/student-login", {
         method: "POST",
         headers: {
           "Content-Type": "application/json",
         },
-        body: JSON.stringify(formData),
+        body: JSON.stringify({ username: username.trim(), password }),
       })
 
       const data = await response.json()
 
-      if (response.ok) {
-        // Guardar información del estudiante en localStorage
-        localStorage.setItem("userId", data.user._id)
-        localStorage.setItem("userRole", data.user.role)
-        localStorage.setItem("userName", data.user.name)
-        localStorage.setItem("userLastName", data.user.lastName || "")
-        localStorage.setItem("username", data.user.username)
-        localStorage.setItem("assignedModules", JSON.stringify(data.user.assignedModules || []))
+      if (response.ok && data.success) {
+        console.log("✅ Login exitoso:", data.user)
 
-        // Redirigir al dashboard del estudiante
+        // Guardar información completa del estudiante
+        localStorage.setItem("userId", data.user.id)
+        localStorage.setItem("userName", data.user.name)
+        localStorage.setItem("userUsername", data.user.username)
+        localStorage.setItem("userRole", data.user.role)
+        localStorage.setItem("assignedModules", JSON.stringify(data.user.assignedModules))
+        localStorage.setItem("dyslexiaLevel", data.user.dyslexiaLevel || "")
+        localStorage.setItem("dyslexiaType", data.user.dyslexiaType || "")
+        localStorage.setItem("hasKinestheticDyslexia", data.user.hasKinestheticDyslexia ? "true" : "false")
+
+        console.log("📚 Módulos asignados guardados:", data.user.assignedModules)
+
+        // Redirigir a la página de módulos
         router.push("/modules")
       } else {
+        console.error("❌ Error en login:", data.error)
         setError(data.error || "Error al iniciar sesión")
       }
-    } catch (err) {
-      console.error("Error:", err)
+    } catch (error) {
+      console.error("❌ Error de conexión:", error)
       setError("Error de conexión. Por favor, intenta de nuevo.")
     } finally {
       setIsLoading(false)
     }
   }
 
-  const handleChange = (e: React.ChangeEvent<HTMLInputElement>) => {
-    setFormData({
-      ...formData,
-      [e.target.name]: e.target.value,
-    })
+  const getFieldStatus = (field: string, value: string) => {
+    if (!value) return "default"
+    if (validationErrors[field as keyof typeof validationErrors]) return "error"
+    return "success"
   }
 
   return (
-    <div className="min-h-screen bg-gradient-to-br from-emerald-50 via-blue-50 to-cyan-50 flex items-center justify-center p-4">
-      <div className="w-full max-w-md">
-        {/* Header con navegación */}
-        <div className="text-center mb-8">
-          <Link
-            href="/"
-            className="inline-flex items-center text-emerald-600 hover:text-emerald-700 mb-6 transition-colors"
-          >
-            <ArrowLeft className="h-4 w-4 mr-2" />
-            <span className="font-medium">Volver al inicio</span>
-          </Link>
+    <div className="min-h-screen bg-gradient-to-br from-green-50 via-blue-50 to-cyan-50 flex items-center justify-center p-4">
+      {/* Elementos decorativos de fondo */}
+      <div className="absolute inset-0 overflow-hidden pointer-events-none">
+        <div className="absolute top-20 left-20 w-32 h-32 bg-green-200 rounded-full opacity-20 animate-pulse"></div>
+        <div className="absolute top-40 right-32 w-24 h-24 bg-blue-200 rounded-full opacity-20 animate-pulse delay-1000"></div>
+        <div className="absolute bottom-32 left-40 w-28 h-28 bg-cyan-200 rounded-full opacity-20 animate-pulse delay-2000"></div>
+        <div className="absolute bottom-20 right-20 w-36 h-36 bg-teal-200 rounded-full opacity-20 animate-pulse delay-500"></div>
+      </div>
 
-          {/* Logo y título */}
-          <div className="flex items-center justify-center space-x-3 mb-6">
-            <div className="relative">
-              <div className="bg-gradient-to-br from-emerald-500 to-cyan-600 p-3 rounded-2xl shadow-lg">
-                <BookOpen className="h-8 w-8 text-white" />
-              </div>
-              <div className="absolute -top-1 -right-1 w-4 h-4 bg-yellow-400 rounded-full flex items-center justify-center">
-                <span className="text-xs">✨</span>
-              </div>
-            </div>
-            <div>
-              <h1 className="text-2xl font-bold bg-gradient-to-r from-emerald-600 to-cyan-600 bg-clip-text text-transparent">
-                DixyApp
-              </h1>
-              <p className="text-sm text-gray-600">Portal Estudiantil</p>
-            </div>
-          </div>
+      <div className="w-full max-w-md relative z-10">
+        {/* Botón de regreso */}
+        <div className="mb-6">
+          <Link href="/">
+            <Button
+              variant="outline"
+              className="flex items-center gap-2 bg-white/80 backdrop-blur-sm border-green-200 hover:bg-green-50 hover:border-green-300 transition-all duration-300"
+            >
+              <ArrowLeft className="h-4 w-4" />
+              Volver al inicio
+            </Button>
+          </Link>
         </div>
 
-        {/* Card principal */}
-        <Card className="border-0 shadow-2xl bg-white/95 backdrop-blur-sm">
-          <CardHeader className="text-center pb-2">
-            <div className="mx-auto mb-4 p-4 bg-gradient-to-br from-emerald-100 to-cyan-100 rounded-full w-20 h-20 flex items-center justify-center">
-              <User className="h-10 w-10 text-emerald-600" />
+        {/* Tarjeta principal */}
+        <Card className="bg-white/95 backdrop-blur-sm shadow-2xl border-0 overflow-hidden">
+          <CardHeader className="bg-gradient-to-r from-green-500 via-teal-500 to-cyan-500 text-white text-center py-8">
+            <div className="flex justify-center mb-4">
+              <div className="w-20 h-20 bg-white/20 rounded-full flex items-center justify-center backdrop-blur-sm">
+                <BookOpen className="h-10 w-10 text-white" />
+              </div>
             </div>
-            <CardTitle className="text-2xl font-bold text-gray-900 mb-2">¡Hola, Estudiante! 👋</CardTitle>
-            <p className="text-gray-600 text-sm">Ingresa tus credenciales para acceder a tus módulos de aprendizaje</p>
+            <CardTitle className="text-2xl font-bold mb-2">¡Hola, Estudiante! 👋</CardTitle>
+            <p className="text-green-100 text-lg">Ingresa tus credenciales para comenzar tu aventura de aprendizaje</p>
           </CardHeader>
 
-          <CardContent className="pt-6">
+          <CardContent className="p-8">
             <form onSubmit={handleSubmit} className="space-y-6">
-              {/* Campo Usuario */}
+              {/* Campo de nombre de usuario */}
               <div className="space-y-2">
-                <Label htmlFor="username" className="text-sm font-semibold text-gray-700 flex items-center gap-2">
-                  <User className="h-4 w-4 text-emerald-600" />
+                <label htmlFor="username" className="text-sm font-medium text-gray-700 flex items-center gap-2">
+                  <User className="h-4 w-4 text-green-600" />
                   Nombre de Usuario
-                </Label>
+                </label>
                 <div className="relative">
                   <Input
                     id="username"
-                    name="username"
                     type="text"
-                    value={formData.username}
-                    onChange={handleChange}
-                    required
-                    className="pl-10 h-12 border-2 border-gray-200 focus:border-emerald-500 focus:ring-emerald-500 rounded-xl transition-all duration-200"
-                    placeholder="tu.nombre"
+                    value={username}
+                    onChange={(e) => {
+                      setUsername(e.target.value)
+                      if (validationErrors.username) {
+                        setValidationErrors((prev) => ({ ...prev, username: undefined }))
+                      }
+                    }}
+                    placeholder="Ej: juan.perez"
+                    className={`pl-10 pr-10 h-12 text-lg transition-all duration-300 ${
+                      getFieldStatus("username", username) === "error"
+                        ? "border-red-300 focus:border-red-500 focus:ring-red-200"
+                        : getFieldStatus("username", username) === "success"
+                          ? "border-green-300 focus:border-green-500 focus:ring-green-200"
+                          : "border-gray-300 focus:border-green-500 focus:ring-green-200"
+                    }`}
+                    disabled={isLoading}
                   />
                   <User className="absolute left-3 top-1/2 transform -translate-y-1/2 h-5 w-5 text-gray-400" />
+                  {getFieldStatus("username", username) === "success" && (
+                    <CheckCircle className="absolute right-3 top-1/2 transform -translate-y-1/2 h-5 w-5 text-green-500" />
+                  )}
+                  {getFieldStatus("username", username) === "error" && (
+                    <AlertCircle className="absolute right-3 top-1/2 transform -translate-y-1/2 h-5 w-5 text-red-500" />
+                  )}
                 </div>
-                <p className="text-xs text-gray-500 flex items-center gap-1">
-                  💡 Formato: nombre.apellido (ej: juan.perez)
-                </p>
+                {validationErrors.username && (
+                  <p className="text-sm text-red-600 flex items-center gap-1">
+                    <AlertCircle className="h-3 w-3" />
+                    {validationErrors.username}
+                  </p>
+                )}
               </div>
 
-              {/* Campo Contraseña */}
+              {/* Campo de contraseña */}
               <div className="space-y-2">
-                <Label htmlFor="password" className="text-sm font-semibold text-gray-700 flex items-center gap-2">
-                  <Lock className="h-4 w-4 text-emerald-600" />
+                <label htmlFor="password" className="text-sm font-medium text-gray-700 flex items-center gap-2">
+                  <Lock className="h-4 w-4 text-green-600" />
                   Contraseña
-                </Label>
+                </label>
                 <div className="relative">
                   <Input
                     id="password"
-                    name="password"
                     type={showPassword ? "text" : "password"}
-                    value={formData.password}
-                    onChange={handleChange}
-                    required
-                    className="pl-10 pr-12 h-12 border-2 border-gray-200 focus:border-emerald-500 focus:ring-emerald-500 rounded-xl transition-all duration-200"
-                    placeholder="Tu contraseña especial"
+                    value={password}
+                    onChange={(e) => {
+                      setPassword(e.target.value)
+                      if (validationErrors.password) {
+                        setValidationErrors((prev) => ({ ...prev, password: undefined }))
+                      }
+                    }}
+                    placeholder="Tu contraseña secreta"
+                    className={`pl-10 pr-10 h-12 text-lg transition-all duration-300 ${
+                      getFieldStatus("password", password) === "error"
+                        ? "border-red-300 focus:border-red-500 focus:ring-red-200"
+                        : getFieldStatus("password", password) === "success"
+                          ? "border-green-300 focus:border-green-500 focus:ring-green-200"
+                          : "border-gray-300 focus:border-green-500 focus:ring-green-200"
+                    }`}
+                    disabled={isLoading}
                   />
                   <Lock className="absolute left-3 top-1/2 transform -translate-y-1/2 h-5 w-5 text-gray-400" />
                   <button
                     type="button"
                     onClick={() => setShowPassword(!showPassword)}
-                    className="absolute right-3 top-1/2 transform -translate-y-1/2 text-gray-400 hover:text-gray-600 transition-colors"
+                    className="absolute right-3 top-1/2 transform -translate-y-1/2 text-gray-400 hover:text-gray-600 transition-colors duration-200"
+                    disabled={isLoading}
                   >
                     {showPassword ? <EyeOff className="h-5 w-5" /> : <Eye className="h-5 w-5" />}
                   </button>
                 </div>
-                <p className="text-xs text-gray-500 flex items-center gap-1">
-                  🔑 Tu contraseña es tu nombre + tu edad (ej: Juan10)
-                </p>
+                {validationErrors.password && (
+                  <p className="text-sm text-red-600 flex items-center gap-1">
+                    <AlertCircle className="h-3 w-3" />
+                    {validationErrors.password}
+                  </p>
+                )}
               </div>
 
               {/* Mensaje de error */}
               {error && (
-                <Alert variant="destructive" className="border-red-200 bg-red-50">
-                  <AlertDescription className="text-red-800 text-sm">{error}</AlertDescription>
+                <Alert className="border-red-200 bg-red-50">
+                  <AlertCircle className="h-4 w-4 text-red-600" />
+                  <AlertDescription className="text-red-700">{error}</AlertDescription>
                 </Alert>
               )}
 
               {/* Botón de envío */}
               <Button
                 type="submit"
-                disabled={isLoading}
-                className="w-full h-12 bg-gradient-to-r from-emerald-600 to-cyan-600 hover:from-emerald-700 hover:to-cyan-700 text-white font-semibold rounded-xl shadow-lg hover:shadow-xl transition-all duration-200 transform hover:scale-[1.02]"
+                disabled={isLoading || !username.trim() || !password}
+                className="w-full h-12 text-lg font-semibold bg-gradient-to-r from-green-500 via-teal-500 to-cyan-500 hover:from-green-600 hover:via-teal-600 hover:to-cyan-600 text-white border-0 shadow-lg hover:shadow-xl transform hover:scale-[1.02] transition-all duration-300 disabled:opacity-50 disabled:cursor-not-allowed disabled:transform-none"
               >
                 {isLoading ? (
-                  <>
-                    <Loader2 className="mr-2 h-5 w-5 animate-spin" />
-                    Entrando...
-                  </>
+                  <div className="flex items-center gap-2">
+                    <div className="w-5 h-5 border-2 border-white border-t-transparent rounded-full animate-spin"></div>
+                    Ingresando...
+                  </div>
                 ) : (
-                  <>
-                    <CheckCircle className="mr-2 h-5 w-5" />
-                    ¡Entrar a Jugar!
-                  </>
+                  <div className="flex items-center gap-2">
+                    <BookOpen className="h-5 w-5" />
+                    ¡Comenzar Aventura!
+                  </div>
                 )}
               </Button>
             </form>
 
-            {/* Enlaces adicionales */}
-            <div className="mt-8 space-y-4">
-              <div className="text-center">
-                <p className="text-gray-600 text-sm">
-                  ¿Eres docente?{" "}
-                  <Link
-                    href="/auth/login"
-                    className="text-indigo-600 hover:text-indigo-700 font-semibold hover:underline transition-colors"
-                  >
-                    Acceso para docentes
-                  </Link>
+            {/* Información adicional */}
+            <div className="mt-8 text-center">
+              <div className="bg-gradient-to-r from-green-50 to-cyan-50 rounded-lg p-4 border border-green-100">
+                <h3 className="text-sm font-semibold text-green-800 mb-2">💡 ¿Necesitas ayuda?</h3>
+                <p className="text-xs text-green-700">
+                  Si no recuerdas tus credenciales, pregunta a tu docente. Tu nombre de usuario es tu nombre y apellido
+                  separados por un punto.
                 </p>
-              </div>
-
-              {/* Información de ayuda */}
-              <div className="p-4 bg-gradient-to-r from-yellow-50 to-orange-50 rounded-xl border border-yellow-200">
-                <div className="flex items-start gap-3">
-                  <div className="text-2xl">🎓</div>
-                  <div>
-                    <p className="text-sm font-semibold text-yellow-800 mb-1">¿No tienes cuenta?</p>
-                    <p className="text-xs text-yellow-700">
-                      Pídele a tu maestro/a que te cree una cuenta para comenzar tu aventura de aprendizaje
-                    </p>
-                  </div>
-                </div>
               </div>
             </div>
           </CardContent>
         </Card>
 
-        {/* Elementos decorativos */}
-        <div className="mt-8 flex justify-center gap-4 opacity-60">
-          <div className="animate-bounce text-2xl">📚</div>
-          <div className="animate-bounce delay-100 text-2xl">🌟</div>
-          <div className="animate-bounce delay-200 text-2xl">🎯</div>
+        {/* Elementos decorativos inferiores */}
+        <div className="mt-8 text-center">
+          <div className="flex justify-center gap-4 text-4xl animate-bounce">
+            <span className="animate-bounce delay-0">🎓</span>
+            <span className="animate-bounce delay-100">📚</span>
+            <span className="animate-bounce delay-200">🌟</span>
+            <span className="animate-bounce delay-300">🚀</span>
+          </div>
         </div>
       </div>
     </div>

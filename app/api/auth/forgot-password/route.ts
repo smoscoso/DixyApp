@@ -47,7 +47,7 @@ export async function POST(request: NextRequest) {
     // Intentar enviar el email
     const emailSent = await sendEmail({
       to: email,
-      subject: "🔑 Recuperar contraseña - DixyApp",
+      subject: "🔑 Recuperar contraseña - Dislexia App",
       html: emailHtml,
     })
 
