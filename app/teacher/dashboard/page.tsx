@@ -346,7 +346,7 @@ export default function TeacherDashboard() {
                 </div>
                 <div>
                   <h1 className="text-2xl font-bold bg-gradient-to-r from-indigo-600 to-purple-600 bg-clip-text text-transparent">
-                    Dashboard Docente
+                    Panel de Control Docente
                   </h1>
                   <p className="text-sm text-gray-600">Bienvenido/a, {userName}</p>
                 </div>

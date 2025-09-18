@@ -893,7 +893,7 @@ export default function Modulo4Page() {
     ctx.fillStyle = "#FFFFFF"
     ctx.font = "bold 12px Arial"
     ctx.textAlign = "center"
-    ctx.fillText("INICIO", template[0].x, template[0].y + 4)
+    ctx.fillText("", template[0].x, template[0].y + 4)
 
     // Punto final
     if (template.length > 1) {
@@ -903,7 +903,7 @@ export default function Modulo4Page() {
       ctx.fill()
 
       ctx.fillStyle = "#FFFFFF"
-      ctx.fillText("FIN", template[template.length - 1].x, template[template.length - 1].y + 4)
+      ctx.fillText("", template[template.length - 1].x, template[template.length - 1].y + 4)
     }
   }, [currentLetter, getLetterTemplate])
 
