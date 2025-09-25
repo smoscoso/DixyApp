@@ -132,10 +132,10 @@ export default function ModulesPage() {
 
   if (isLoading) {
     return (
-      <div className="min-h-screen flex items-center justify-center bg-gradient-to-b from-pink-200 to-blue-200">
+      <div className="min-h-screen flex items-center justify-center bg-gradient-to-b from-blue-200 to-cyan-200">
         <div className="text-center">
           <div className="text-6xl animate-bounce mb-4">🧠</div>
-          <div className="text-3xl text-purple-600 animate-pulse">
+          <div className="text-3xl text-blue-600 animate-pulse">
             {initializingNetworks ? "Preparando redes neuronales..." : "Cargando tus módulos..."}
           </div>
           <div className="text-lg text-gray-600 mt-2">
@@ -153,18 +153,18 @@ export default function ModulesPage() {
   }
 
   return (
-    <div className="min-h-screen bg-gradient-to-b from-pink-200 to-blue-200 py-8 bg-[url('/placeholder.svg?height=200&width=200')] bg-repeat">
+    <div className="min-h-screen bg-gradient-to-b from-blue-200 to-cyan-200 py-8 bg-[url('/placeholder.svg?height=200&width=200')] bg-repeat">
       <div className="container mx-auto px-4">
         <div className="flex justify-between items-center mb-12">
           <Link href="/">
             <Button variant="outline" className="flex items-center gap-2 bg-white rounded-full p-6 shadow-md">
               <ArrowLeft className="h-6 w-6" />
-              <span className="text-lg">Volver al inicio</span>
+              <span className="text-lg">Salir</span>
             </Button>
           </Link>
-          <div className="text-center bg-white p-4 rounded-2xl shadow-lg border-4 border-pink-400">
-            <h1 className="text-3xl font-bold text-purple-600">¡Hola {userName}!</h1>
-            <p className="text-xl text-pink-500">Elige un módulo para comenzar</p>
+          <div className="text-center bg-white p-4 rounded-2xl shadow-lg border-4 border-blue-400">
+            <h1 className="text-3xl font-bold text-blue-600">¡Hola {userName}!</h1>
+            <p className="text-xl text-cyan-500">Elige un módulo para comenzar</p>
             <p className="text-sm text-green-600 mt-2">🧠 Sistema listo para aprender</p>
             {studentInfo && (
               <div className="mt-2 text-xs text-gray-600">
@@ -196,8 +196,8 @@ export default function ModulesPage() {
         )}
 
         <div className="mt-16 text-center">
-          <div className="inline-block bg-white p-6 rounded-2xl shadow-lg border-4 border-pink-400">
-            <h2 className="text-3xl font-bold text-purple-600 mb-4">¡Elige tu aventura de aprendizaje!</h2>
+          <div className="inline-block bg-white p-6 rounded-2xl shadow-lg border-4 border-blue-400">
+            <h2 className="text-3xl font-bold text-blue-600 mb-4">¡Elige tu aventura de aprendizaje!</h2>
             <p className="text-xl text-gray-700 mb-4">
               Cada módulo está diseñado específicamente para tu tipo de dislexia
               {studentInfo?.dyslexiaType && `: ${studentInfo.dyslexiaType}`}
@@ -228,11 +228,11 @@ function ModuleCard({
   return (
     <Card
       className={`overflow-hidden transition-all duration-300 hover:scale-105 rounded-3xl shadow-xl ${
-        active ? "border-yellow-400 border-4" : "opacity-80"
+        active ? "border-blue-400 border-4" : "opacity-80"
       }`}
     >
       <CardContent className="p-0">
-        <div className={`bg-gradient-to-r ${module.color} p-6 text-white text-center`}>
+        <div className="bg-gradient-to-r from-blue-500 to-cyan-600 p-6 text-white text-center">
           <div className="text-6xl mb-4 transform hover:scale-125 transition-transform">{module.icon}</div>
           <h2 className="text-2xl font-bold">{module.title}</h2>
           <div className="mt-2 text-sm opacity-90">
@@ -256,7 +256,7 @@ function ModuleCard({
           </div>
 
           <Link href={href}>
-            <Button className="w-full text-lg py-6 rounded-full bg-gradient-to-r from-yellow-400 to-orange-500 hover:from-yellow-500 hover:to-orange-600 shadow-lg">
+            <Button className="w-full text-lg py-6 rounded-full bg-gradient-to-r from-blue-400 to-cyan-500 hover:from-blue-500 hover:to-cyan-600 shadow-lg">
               ¡Comenzar Aventura!
             </Button>
           </Link>

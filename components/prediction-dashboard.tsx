@@ -7,93 +7,79 @@ import { Badge } from "@/components/ui/badge"
 import { Progress } from "@/components/ui/progress"
 import { Alert, AlertDescription } from "@/components/ui/alert"
 import {
+  Brain,
   TrendingUp,
   TrendingDown,
   Minus,
+  AlertTriangle,
+  CheckCircle,
   Clock,
   Target,
-  AlertTriangle,
-  Brain,
-  Calendar,
-  BarChart3,
-  Zap,
-  RefreshCw,
   Loader2,
-  Info,
+  RefreshCw,
+  BarChart3,
 } from "lucide-react"
-import { Collapsible, CollapsibleContent, CollapsibleTrigger } from "@/components/ui/collapsible"
+import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs"
 
 interface PredictionData {
   studentId: string
   studentName: string
-  hasEnoughData: boolean
-  minimumDataReached: boolean
-  message?: string
-  shortTermPredictions?: {
-    expectedProgress: number
-    expectedAccuracy: number
-    riskOfDropout: number
-    motivationForecast: "creciente" | "estable" | "decreciente"
+  username: string
+  prediction: {
+    shortTerm: {
+      expectedProgress: number
+      expectedAccuracy: number
+      riskOfDropout: number
+      timeframe: string
+    }
+    mediumTerm: {
+      modulesToComplete: number[]
+      estimatedCompletionTime: number
+      interventionNeeded: boolean
+      timeframe: string
+    }
+    longTerm: {
+      overallSuccessProbability: number
+      recommendedInterventions: string[]
+      projectedOutcome: string
+      timeframe: string
+    }
+    trends: {
+      progressTrend: "mejorando" | "estable" | "empeorando"
+      accuracyTrend: "mejorando" | "estable" | "empeorando"
+      engagementTrend: "alta" | "media" | "baja"
+      overallTrajectory: "positiva" | "neutral" | "preocupante"
+    }
+    confidence: number
   }
-  mediumTermPredictions?: {
-    expectedProgress: number
-    expectedAccuracy: number
-    modulesLikelyToComplete: number[]
-    estimatedCompletionTime: number
-  }
-  longTermPredictions?: {
-    expectedProgress: number
-    expectedAccuracy: number
-    overallSuccessProbability: number
-    recommendedInterventions: string[]
-  }
-  trendAnalysis?: {
-    progressTrend: "mejorando" | "estable" | "empeorando"
-    accuracyTrend: "mejorando" | "estable" | "empeorando"
-    engagementTrend: "aumentando" | "estable" | "disminuyendo"
-    overallTrajectory: "positiva" | "neutral" | "preocupante"
-  }
-  recommendations?: {
-    immediate: string[]
-    shortTerm: string[]
-    longTerm: string[]
-  }
-  confidence?: number
+  lastUpdated: string
 }
 
 interface PredictionDashboardProps {
   teacherId: string
-  studentId?: string
 }
 
-export default function PredictionDashboard({ teacherId, studentId }: PredictionDashboardProps) {
+export default function PredictionDashboard({ teacherId }: PredictionDashboardProps) {
   const [predictions, setPredictions] = useState<PredictionData[]>([])
-  const [isLoading, setIsLoading] = useState(false)
+  const [isLoading, setIsLoading] = useState(true)
   const [error, setError] = useState("")
-  const [expandedPredictions, setExpandedPredictions] = useState<Set<string>>(new Set())
 
   useEffect(() => {
-    loadPredictions()
-  }, [teacherId, studentId])
+    if (teacherId) {
+      loadPredictions()
+    }
+  }, [teacherId])
 
   const loadPredictions = async () => {
     setIsLoading(true)
     setError("")
 
     try {
-      const url = studentId
-        ? `/api/teacher/student-predictions?teacherId=${teacherId}&studentId=${studentId}`
-        : `/api/teacher/student-predictions?teacherId=${teacherId}`
-
-      const response = await fetch(url)
+      const response = await fetch(`/api/teacher/student-predictions?teacherId=${teacherId}`)
       const data = await response.json()
 
       if (response.ok) {
-        if (studentId) {
-          setPredictions([data.prediction])
-        } else {
-          setPredictions(data.predictions || [])
-        }
+        setPredictions(data.predictions || [])
       } else {
         setError(data.error || "Error al cargar predicciones")
       }
@@ -105,25 +91,11 @@ export default function PredictionDashboard({ teacherId, studentId }: Prediction
     }
   }
 
-  const togglePredictionExpansion = (studentId: string) => {
-    const newExpanded = new Set(expandedPredictions)
-    if (newExpanded.has(studentId)) {
-      newExpanded.delete(studentId)
-    } else {
-      newExpanded.add(studentId)
-    }
-    setExpandedPredictions(newExpanded)
-  }
-
   const getTrendIcon = (trend: string) => {
     switch (trend) {
       case "mejorando":
-      case "aumentando":
-      case "creciente":
         return <TrendingUp className="h-4 w-4 text-green-600" />
       case "empeorando":
-      case "disminuyendo":
-      case "decreciente":
         return <TrendingDown className="h-4 w-4 text-red-600" />
       default:
         return <Minus className="h-4 w-4 text-yellow-600" />
@@ -133,366 +105,358 @@ export default function PredictionDashboard({ teacherId, studentId }: Prediction
   const getTrendColor = (trend: string) => {
     switch (trend) {
       case "mejorando":
-      case "aumentando":
-      case "creciente":
-      case "positiva":
-        return "text-green-700 bg-green-50 border-green-200"
+        return "text-green-600 bg-green-50"
       case "empeorando":
-      case "disminuyendo":
-      case "decreciente":
-      case "preocupante":
-        return "text-red-700 bg-red-50 border-red-200"
+        return "text-red-600 bg-red-50"
       default:
-        return "text-yellow-700 bg-yellow-50 border-yellow-200"
+        return "text-yellow-600 bg-yellow-50"
     }
   }
 
   const getRiskColor = (risk: number) => {
-    if (risk > 70) return "text-red-700 bg-red-50 border-red-200"
-    if (risk > 40) return "text-yellow-700 bg-yellow-50 border-yellow-200"
-    return "text-green-700 bg-green-50 border-green-200"
+    if (risk > 70) return "text-red-600 bg-red-50"
+    if (risk > 40) return "text-yellow-600 bg-yellow-50"
+    return "text-green-600 bg-green-50"
   }
 
-  const getConfidenceColor = (confidence: number) => {
-    if (confidence > 80) return "text-green-700"
-    if (confidence > 60) return "text-yellow-700"
-    return "text-red-700"
+  const getTrajectoryColor = (trajectory: string) => {
+    switch (trajectory) {
+      case "positiva":
+        return "text-green-600 bg-green-50"
+      case "preocupante":
+        return "text-red-600 bg-red-50"
+      default:
+        return "text-blue-600 bg-blue-50"
+    }
+  }
+
+  const getHighRiskStudents = () => {
+    return predictions.filter((p) => p.prediction.shortTerm.riskOfDropout > 70)
+  }
+
+  const getStudentsNeedingIntervention = () => {
+    return predictions.filter((p) => p.prediction.mediumTerm.interventionNeeded)
+  }
+
+  const getAverageSuccessProbability = () => {
+    if (predictions.length === 0) return 0
+    const total = predictions.reduce((sum, p) => sum + p.prediction.longTerm.overallSuccessProbability, 0)
+    return Math.round(total / predictions.length)
   }
 
   if (isLoading) {
     return (
-      <div className="flex items-center justify-center py-12">
-        <Loader2 className="h-8 w-8 animate-spin text-indigo-600" />
-        <span className="ml-2 text-gray-600">Generando predicciones...</span>
-      </div>
+      <Card className="border-0 shadow-xl">
+        <CardHeader>
+          <CardTitle className="text-xl text-gray-900 flex items-center gap-2">
+            <Brain className="h-6 w-6 text-purple-600" />
+            Predicciones de Rendimiento IA
+          </CardTitle>
+        </CardHeader>
+        <CardContent>
+          <div className="flex items-center justify-center py-12">
+            <Loader2 className="h-8 w-8 animate-spin text-purple-600" />
+            <span className="ml-2 text-gray-600">Generando predicciones...</span>
+          </div>
+        </CardContent>
+      </Card>
     )
   }
 
   if (error) {
     return (
-      <Alert variant="destructive" className="mb-6">
-        <AlertTriangle className="h-4 w-4" />
-        <AlertDescription>{error}</AlertDescription>
-      </Alert>
+      <Card className="border-0 shadow-xl">
+        <CardHeader>
+          <CardTitle className="text-xl text-gray-900 flex items-center gap-2">
+            <Brain className="h-6 w-6 text-purple-600" />
+            Predicciones de Rendimiento IA
+          </CardTitle>
+        </CardHeader>
+        <CardContent>
+          <Alert variant="destructive">
+            <AlertTriangle className="h-4 w-4" />
+            <AlertDescription>{error}</AlertDescription>
+          </Alert>
+        </CardContent>
+      </Card>
     )
   }
 
   return (
     <div className="space-y-6">
-      <div className="flex items-center justify-between">
-        <div className="flex items-center gap-2">
-          <Brain className="h-6 w-6 text-indigo-600" />
-          <h2 className="text-2xl font-bold text-gray-900">Predicciones de Rendimiento Futuro</h2>
-        </div>
-        <Button
-          onClick={loadPredictions}
-          disabled={isLoading}
-          variant="outline"
-          size="sm"
-          className="flex items-center gap-2 bg-transparent"
-        >
-          {isLoading ? <Loader2 className="h-4 w-4 animate-spin" /> : <RefreshCw className="h-4 w-4" />}
-          Actualizar
-        </Button>
-      </div>
+      <Card className="border-0 shadow-xl">
+        <CardHeader className="bg-gradient-to-r from-purple-50 to-indigo-50 border-b">
+          <div className="flex items-center justify-between">
+            <CardTitle className="text-xl text-gray-900 flex items-center gap-2">
+              <Brain className="h-6 w-6 text-purple-600" />
+              Predicciones de Rendimiento IA
+            </CardTitle>
+            <Button
+              onClick={loadPredictions}
+              disabled={isLoading}
+              variant="outline"
+              size="sm"
+              className="flex items-center gap-2 bg-transparent"
+            >
+              {isLoading ? <Loader2 className="h-4 w-4 animate-spin" /> : <RefreshCw className="h-4 w-4" />}
+              Actualizar
+            </Button>
+          </div>
+        </CardHeader>
+        <CardContent className="p-6">
+          {predictions.length === 0 ? (
+            <div className="text-center py-8 text-gray-500">
+              <Brain className="h-16 w-16 mx-auto mb-4 opacity-50" />
+              <p className="text-xl font-medium mb-2">No hay predicciones disponibles</p>
+              <p className="text-gray-400">Se necesitan más datos de progreso para generar predicciones</p>
+            </div>
+          ) : (
+            <Tabs defaultValue="overview" className="space-y-6">
+              <TabsList className="grid w-full grid-cols-3">
+                <TabsTrigger value="overview">Resumen</TabsTrigger>
+                <TabsTrigger value="predictions">Predicciones</TabsTrigger>
+                <TabsTrigger value="interventions">Intervenciones</TabsTrigger>
+              </TabsList>
 
-      {predictions.length === 0 ? (
-        <Card>
-          <CardContent className="text-center py-12">
-            <Brain className="h-16 w-16 mx-auto mb-4 opacity-50 text-gray-400" />
-            <p className="text-xl font-medium mb-2 text-gray-600">No hay predicciones disponibles</p>
-            <p className="text-gray-400">Los estudiantes necesitan más actividad para generar predicciones</p>
-          </CardContent>
-        </Card>
-      ) : (
-        <div className="space-y-6">
-          {predictions.map((prediction) => (
-            <Card key={prediction.studentId} className="border-0 shadow-lg">
-              <CardHeader className="bg-gradient-to-r from-indigo-50 to-purple-50 border-b">
-                <div className="flex items-center justify-between">
-                  <CardTitle className="text-xl text-indigo-900 flex items-center gap-2">
-                    <BarChart3 className="h-5 w-5" />
-                    {prediction.studentName}
-                  </CardTitle>
-                  {prediction.confidence && (
-                    <Badge className={`${getConfidenceColor(prediction.confidence)} bg-transparent border`}>
-                      Confianza: {Math.round(prediction.confidence)}%
-                    </Badge>
-                  )}
+              <TabsContent value="overview" className="space-y-6">
+                {/* Métricas generales */}
+                <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
+                  <Card className="border-0 shadow-lg bg-gradient-to-br from-red-50 to-orange-50">
+                    <CardContent className="p-6">
+                      <div className="flex items-center justify-between">
+                        <div>
+                          <p className="text-sm font-medium text-red-600 mb-1">Alto Riesgo</p>
+                          <p className="text-3xl font-bold text-red-700">{getHighRiskStudents().length}</p>
+                          <p className="text-xs text-red-500 mt-1">Estudiantes</p>
+                        </div>
+                        <div className="bg-red-100 p-3 rounded-2xl">
+                          <AlertTriangle className="h-8 w-8 text-red-600" />
+                        </div>
+                      </div>
+                    </CardContent>
+                  </Card>
+
+                  <Card className="border-0 shadow-lg bg-gradient-to-br from-yellow-50 to-orange-50">
+                    <CardContent className="p-6">
+                      <div className="flex items-center justify-between">
+                        <div>
+                          <p className="text-sm font-medium text-yellow-600 mb-1">Necesitan Intervención</p>
+                          <p className="text-3xl font-bold text-yellow-700">
+                            {getStudentsNeedingIntervention().length}
+                          </p>
+                          <p className="text-xs text-yellow-500 mt-1">Estudiantes</p>
+                        </div>
+                        <div className="bg-yellow-100 p-3 rounded-2xl">
+                          <Target className="h-8 w-8 text-yellow-600" />
+                        </div>
+                      </div>
+                    </CardContent>
+                  </Card>
+
+                  <Card className="border-0 shadow-lg bg-gradient-to-br from-green-50 to-emerald-50">
+                    <CardContent className="p-6">
+                      <div className="flex items-center justify-between">
+                        <div>
+                          <p className="text-sm font-medium text-green-600 mb-1">Éxito Promedio</p>
+                          <p className="text-3xl font-bold text-green-700">{getAverageSuccessProbability()}%</p>
+                          <p className="text-xs text-green-500 mt-1">Probabilidad</p>
+                        </div>
+                        <div className="bg-green-100 p-3 rounded-2xl">
+                          <CheckCircle className="h-8 w-8 text-green-600" />
+                        </div>
+                      </div>
+                    </CardContent>
+                  </Card>
                 </div>
-              </CardHeader>
 
-              <CardContent className="p-6">
-                {!prediction.hasEnoughData ? (
-                  <Alert className="border-yellow-200 bg-yellow-50">
-                    <Info className="h-4 w-4 text-yellow-600" />
-                    <AlertDescription className="text-yellow-800">{prediction.message}</AlertDescription>
-                  </Alert>
-                ) : (
-                  <div className="space-y-6">
-                    {/* Resumen de predicciones */}
-                    <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
-                      {/* Predicciones a corto plazo */}
-                      <Card className="bg-blue-50 border-blue-200">
-                        <CardHeader className="pb-3">
-                          <CardTitle className="text-sm font-medium text-blue-800 flex items-center gap-2">
-                            <Clock className="h-4 w-4" />
-                            Próximas 2 semanas
-                          </CardTitle>
-                        </CardHeader>
-                        <CardContent className="space-y-3">
-                          <div>
-                            <div className="flex justify-between text-sm mb-1">
-                              <span className="text-blue-700">Progreso esperado</span>
-                              <span className="font-medium text-blue-800">
-                                {Math.round(prediction.shortTermPredictions?.expectedProgress || 0)}%
-                              </span>
+                {/* Estudiantes de alto riesgo */}
+                {getHighRiskStudents().length > 0 && (
+                  <Card className="border-2 border-red-200 bg-red-50">
+                    <CardHeader>
+                      <CardTitle className="text-red-800 flex items-center gap-2">
+                        <AlertTriangle className="h-5 w-5" />
+                        Estudiantes de Alto Riesgo
+                      </CardTitle>
+                    </CardHeader>
+                    <CardContent>
+                      <div className="space-y-3">
+                        {getHighRiskStudents().map((student) => (
+                          <div
+                            key={student.studentId}
+                            className="flex items-center justify-between p-3 bg-white rounded-lg"
+                          >
+                            <div>
+                              <p className="font-medium text-gray-900">{student.studentName}</p>
+                              <p className="text-sm text-gray-600">@{student.username}</p>
                             </div>
-                            <Progress value={prediction.shortTermPredictions?.expectedProgress || 0} className="h-2" />
-                          </div>
-                          <div>
-                            <div className="flex justify-between text-sm mb-1">
-                              <span className="text-blue-700">Precisión esperada</span>
-                              <span className="font-medium text-blue-800">
-                                {Math.round(prediction.shortTermPredictions?.expectedAccuracy || 0)}%
-                              </span>
-                            </div>
-                            <Progress value={prediction.shortTermPredictions?.expectedAccuracy || 0} className="h-2" />
-                          </div>
-                          <div className="flex items-center justify-between">
-                            <span className="text-sm text-blue-700">Motivación</span>
-                            <div className="flex items-center gap-1">
-                              {getTrendIcon(prediction.shortTermPredictions?.motivationForecast || "estable")}
-                              <span className="text-sm font-medium text-blue-800 capitalize">
-                                {prediction.shortTermPredictions?.motivationForecast}
-                              </span>
-                            </div>
-                          </div>
-                        </CardContent>
-                      </Card>
-
-                      {/* Predicciones a mediano plazo */}
-                      <Card className="bg-green-50 border-green-200">
-                        <CardHeader className="pb-3">
-                          <CardTitle className="text-sm font-medium text-green-800 flex items-center gap-2">
-                            <Calendar className="h-4 w-4" />
-                            Próximo mes
-                          </CardTitle>
-                        </CardHeader>
-                        <CardContent className="space-y-3">
-                          <div>
-                            <div className="flex justify-between text-sm mb-1">
-                              <span className="text-green-700">Progreso esperado</span>
-                              <span className="font-medium text-green-800">
-                                {Math.round(prediction.mediumTermPredictions?.expectedProgress || 0)}%
-                              </span>
-                            </div>
-                            <Progress value={prediction.mediumTermPredictions?.expectedProgress || 0} className="h-2" />
-                          </div>
-                          <div className="text-sm">
-                            <span className="text-green-700">Tiempo estimado: </span>
-                            <span className="font-medium text-green-800">
-                              {prediction.mediumTermPredictions?.estimatedCompletionTime || 0} días
-                            </span>
-                          </div>
-                          <div className="text-sm">
-                            <span className="text-green-700">Módulos a completar: </span>
-                            <span className="font-medium text-green-800">
-                              {prediction.mediumTermPredictions?.modulesLikelyToComplete?.length || 0}
-                            </span>
-                          </div>
-                        </CardContent>
-                      </Card>
-
-                      {/* Predicciones a largo plazo */}
-                      <Card className="bg-purple-50 border-purple-200">
-                        <CardHeader className="pb-3">
-                          <CardTitle className="text-sm font-medium text-purple-800 flex items-center gap-2">
-                            <Target className="h-4 w-4" />
-                            Próximos 3 meses
-                          </CardTitle>
-                        </CardHeader>
-                        <CardContent className="space-y-3">
-                          <div>
-                            <div className="flex justify-between text-sm mb-1">
-                              <span className="text-purple-700">Probabilidad de éxito</span>
-                              <span className="font-medium text-purple-800">
-                                {Math.round(prediction.longTermPredictions?.overallSuccessProbability || 0)}%
-                              </span>
-                            </div>
-                            <Progress
-                              value={prediction.longTermPredictions?.overallSuccessProbability || 0}
-                              className="h-2"
-                            />
-                          </div>
-                          <div>
-                            <div className="flex justify-between text-sm mb-1">
-                              <span className="text-purple-700">Progreso final esperado</span>
-                              <span className="font-medium text-purple-800">
-                                {Math.round(prediction.longTermPredictions?.expectedProgress || 0)}%
-                              </span>
-                            </div>
-                            <Progress value={prediction.longTermPredictions?.expectedProgress || 0} className="h-2" />
-                          </div>
-                        </CardContent>
-                      </Card>
-                    </div>
-
-                    {/* Análisis de tendencias */}
-                    {prediction.trendAnalysis && (
-                      <Card className="bg-gray-50 border-gray-200">
-                        <CardHeader className="pb-3">
-                          <CardTitle className="text-sm font-medium text-gray-800 flex items-center gap-2">
-                            <TrendingUp className="h-4 w-4" />
-                            Análisis de Tendencias
-                          </CardTitle>
-                        </CardHeader>
-                        <CardContent>
-                          <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
-                            <div className="text-center">
-                              <div className="flex items-center justify-center gap-1 mb-1">
-                                {getTrendIcon(prediction.trendAnalysis.progressTrend)}
-                                <span className="text-sm font-medium">Progreso</span>
-                              </div>
-                              <Badge className={`${getTrendColor(prediction.trendAnalysis.progressTrend)} text-xs`}>
-                                {prediction.trendAnalysis.progressTrend}
+                            <div className="text-right">
+                              <Badge className="bg-red-100 text-red-800">
+                                {student.prediction.shortTerm.riskOfDropout}% riesgo
                               </Badge>
-                            </div>
-                            <div className="text-center">
-                              <div className="flex items-center justify-center gap-1 mb-1">
-                                {getTrendIcon(prediction.trendAnalysis.accuracyTrend)}
-                                <span className="text-sm font-medium">Precisión</span>
-                              </div>
-                              <Badge className={`${getTrendColor(prediction.trendAnalysis.accuracyTrend)} text-xs`}>
-                                {prediction.trendAnalysis.accuracyTrend}
-                              </Badge>
-                            </div>
-                            <div className="text-center">
-                              <div className="flex items-center justify-center gap-1 mb-1">
-                                {getTrendIcon(prediction.trendAnalysis.engagementTrend)}
-                                <span className="text-sm font-medium">Compromiso</span>
-                              </div>
-                              <Badge className={`${getTrendColor(prediction.trendAnalysis.engagementTrend)} text-xs`}>
-                                {prediction.trendAnalysis.engagementTrend}
-                              </Badge>
-                            </div>
-                            <div className="text-center">
-                              <div className="flex items-center justify-center gap-1 mb-1">
-                                {getTrendIcon(prediction.trendAnalysis.overallTrajectory)}
-                                <span className="text-sm font-medium">Trayectoria</span>
-                              </div>
-                              <Badge className={`${getTrendColor(prediction.trendAnalysis.overallTrajectory)} text-xs`}>
-                                {prediction.trendAnalysis.overallTrajectory}
-                              </Badge>
+                              <p className="text-xs text-gray-500 mt-1">
+                                Trayectoria: {student.prediction.trends.overallTrajectory}
+                              </p>
                             </div>
                           </div>
-                        </CardContent>
-                      </Card>
-                    )}
-
-                    {/* Riesgo de abandono */}
-                    {prediction.shortTermPredictions && (
-                      <Alert className={getRiskColor(prediction.shortTermPredictions.riskOfDropout)}>
-                        <AlertTriangle className="h-4 w-4" />
-                        <AlertDescription>
-                          <strong>
-                            Riesgo de abandono: {Math.round(prediction.shortTermPredictions.riskOfDropout)}%
-                          </strong>
-                          {prediction.shortTermPredictions.riskOfDropout > 70 && (
-                            <span className="block mt-1">⚠️ Requiere atención inmediata del docente</span>
-                          )}
-                        </AlertDescription>
-                      </Alert>
-                    )}
-
-                    {/* Recomendaciones expandibles */}
-                    {prediction.recommendations && (
-                      <Collapsible
-                        open={expandedPredictions.has(prediction.studentId)}
-                        onOpenChange={() => togglePredictionExpansion(prediction.studentId)}
-                      >
-                        <CollapsibleTrigger asChild>
-                          <Button variant="outline" className="w-full flex items-center gap-2 bg-transparent">
-                            <Zap className="h-4 w-4" />
-                            {expandedPredictions.has(prediction.studentId) ? "Ocultar" : "Ver"} Recomendaciones
-                            Detalladas
-                          </Button>
-                        </CollapsibleTrigger>
-                        <CollapsibleContent>
-                          <div className="mt-4 space-y-4">
-                            {/* Recomendaciones inmediatas */}
-                            {prediction.recommendations.immediate.length > 0 && (
-                              <div>
-                                <h4 className="font-semibold text-red-800 mb-2 flex items-center gap-2">
-                                  <AlertTriangle className="h-4 w-4" />
-                                  Acciones Inmediatas (1-2 semanas)
-                                </h4>
-                                <div className="space-y-2">
-                                  {prediction.recommendations.immediate.map((rec, idx) => (
-                                    <div
-                                      key={idx}
-                                      className="flex items-start gap-2 p-3 bg-red-50 rounded-lg border border-red-200"
-                                    >
-                                      <AlertTriangle className="h-4 w-4 text-red-600 mt-0.5 flex-shrink-0" />
-                                      <span className="text-sm text-red-800">{rec}</span>
-                                    </div>
-                                  ))}
-                                </div>
-                              </div>
-                            )}
-
-                            {/* Recomendaciones a corto plazo */}
-                            {prediction.recommendations.shortTerm.length > 0 && (
-                              <div>
-                                <h4 className="font-semibold text-yellow-800 mb-2 flex items-center gap-2">
-                                  <Clock className="h-4 w-4" />
-                                  Acciones a Corto Plazo (1 mes)
-                                </h4>
-                                <div className="space-y-2">
-                                  {prediction.recommendations.shortTerm.map((rec, idx) => (
-                                    <div
-                                      key={idx}
-                                      className="flex items-start gap-2 p-3 bg-yellow-50 rounded-lg border border-yellow-200"
-                                    >
-                                      <Clock className="h-4 w-4 text-yellow-600 mt-0.5 flex-shrink-0" />
-                                      <span className="text-sm text-yellow-800">{rec}</span>
-                                    </div>
-                                  ))}
-                                </div>
-                              </div>
-                            )}
-
-                            {/* Recomendaciones a largo plazo */}
-                            {prediction.recommendations.longTerm.length > 0 && (
-                              <div>
-                                <h4 className="font-semibold text-blue-800 mb-2 flex items-center gap-2">
-                                  <Target className="h-4 w-4" />
-                                  Estrategias a Largo Plazo (3 meses)
-                                </h4>
-                                <div className="space-y-2">
-                                  {prediction.recommendations.longTerm.map((rec, idx) => (
-                                    <div
-                                      key={idx}
-                                      className="flex items-start gap-2 p-3 bg-blue-50 rounded-lg border border-blue-200"
-                                    >
-                                      <Target className="h-4 w-4 text-blue-600 mt-0.5 flex-shrink-0" />
-                                      <span className="text-sm text-blue-800">{rec}</span>
-                                    </div>
-                                  ))}
-                                </div>
-                              </div>
-                            )}
-                          </div>
-                        </CollapsibleContent>
-                      </Collapsible>
-                    )}
-                  </div>
+                        ))}
+                      </div>
+                    </CardContent>
+                  </Card>
                 )}
-              </CardContent>
-            </Card>
-          ))}
-        </div>
-      )}
+              </TabsContent>
+
+              <TabsContent value="predictions" className="space-y-6">
+                <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
+                  {predictions.map((student) => (
+                    <Card key={student.studentId} className="border-0 shadow-lg">
+                      <CardHeader className="pb-3">
+                        <div className="flex items-center justify-between">
+                          <div>
+                            <CardTitle className="text-lg">{student.studentName}</CardTitle>
+                            <p className="text-sm text-gray-600">@{student.username}</p>
+                          </div>
+                          <Badge className={getTrajectoryColor(student.prediction.trends.overallTrajectory)}>
+                            {student.prediction.trends.overallTrajectory}
+                          </Badge>
+                        </div>
+                      </CardHeader>
+                      <CardContent className="space-y-4">
+                        {/* Predicciones a corto plazo */}
+                        <div>
+                          <h4 className="font-medium text-gray-900 mb-2 flex items-center gap-2">
+                            <Clock className="h-4 w-4" />
+                            Corto Plazo (1-2 semanas)
+                          </h4>
+                          <div className="grid grid-cols-2 gap-3">
+                            <div className="bg-blue-50 p-3 rounded-lg">
+                              <p className="text-xs text-blue-600 mb-1">Progreso Esperado</p>
+                              <p className="text-lg font-bold text-blue-800">
+                                {student.prediction.shortTerm.expectedProgress}%
+                              </p>
+                            </div>
+                            <div
+                              className={`p-3 rounded-lg ${getRiskColor(student.prediction.shortTerm.riskOfDropout)}`}
+                            >
+                              <p className="text-xs mb-1">Riesgo de Abandono</p>
+                              <p className="text-lg font-bold">{student.prediction.shortTerm.riskOfDropout}%</p>
+                            </div>
+                          </div>
+                        </div>
+
+                        {/* Tendencias */}
+                        <div>
+                          <h4 className="font-medium text-gray-900 mb-2 flex items-center gap-2">
+                            <BarChart3 className="h-4 w-4" />
+                            Tendencias
+                          </h4>
+                          <div className="space-y-2">
+                            <div className="flex items-center justify-between">
+                              <span className="text-sm text-gray-600">Progreso:</span>
+                              <div
+                                className={`flex items-center gap-1 px-2 py-1 rounded ${getTrendColor(student.prediction.trends.progressTrend)}`}
+                              >
+                                {getTrendIcon(student.prediction.trends.progressTrend)}
+                                <span className="text-xs font-medium">{student.prediction.trends.progressTrend}</span>
+                              </div>
+                            </div>
+                            <div className="flex items-center justify-between">
+                              <span className="text-sm text-gray-600">Precisión:</span>
+                              <div
+                                className={`flex items-center gap-1 px-2 py-1 rounded ${getTrendColor(student.prediction.trends.accuracyTrend)}`}
+                              >
+                                {getTrendIcon(student.prediction.trends.accuracyTrend)}
+                                <span className="text-xs font-medium">{student.prediction.trends.accuracyTrend}</span>
+                              </div>
+                            </div>
+                          </div>
+                        </div>
+
+                        {/* Probabilidad de éxito a largo plazo */}
+                        <div>
+                          <h4 className="font-medium text-gray-900 mb-2">Probabilidad de Éxito (3 meses)</h4>
+                          <div className="space-y-2">
+                            <Progress value={student.prediction.longTerm.overallSuccessProbability} className="h-3" />
+                            <div className="flex justify-between text-sm">
+                              <span className="text-gray-600">
+                                {student.prediction.longTerm.overallSuccessProbability}%
+                              </span>
+                              <span className="text-gray-500">Confianza: {student.prediction.confidence}%</span>
+                            </div>
+                          </div>
+                        </div>
+
+                        {/* Módulos a completar */}
+                        {student.prediction.mediumTerm.modulesToComplete.length > 0 && (
+                          <div>
+                            <h4 className="font-medium text-gray-900 mb-2">Próximos Módulos</h4>
+                            <div className="flex flex-wrap gap-1">
+                              {student.prediction.mediumTerm.modulesToComplete.map((moduleId) => (
+                                <Badge key={moduleId} variant="outline" className="text-xs">
+                                  Módulo {moduleId}
+                                </Badge>
+                              ))}
+                            </div>
+                          </div>
+                        )}
+                      </CardContent>
+                    </Card>
+                  ))}
+                </div>
+              </TabsContent>
+
+              <TabsContent value="interventions" className="space-y-6">
+                {getStudentsNeedingIntervention().map((student) => (
+                  <Card key={student.studentId} className="border-0 shadow-lg">
+                    <CardHeader>
+                      <CardTitle className="text-lg flex items-center gap-2">
+                        <Target className="h-5 w-5 text-orange-600" />
+                        {student.studentName}
+                      </CardTitle>
+                    </CardHeader>
+                    <CardContent>
+                      <div className="space-y-4">
+                        <div className="bg-orange-50 p-4 rounded-lg border border-orange-200">
+                          <h4 className="font-medium text-orange-800 mb-2">Resultado Proyectado</h4>
+                          <p className="text-sm text-orange-700">{student.prediction.longTerm.projectedOutcome}</p>
+                        </div>
+
+                        <div>
+                          <h4 className="font-medium text-gray-900 mb-3">Intervenciones Recomendadas</h4>
+                          <div className="space-y-2">
+                            {student.prediction.longTerm.recommendedInterventions.map((intervention, index) => (
+                              <div key={index} className="flex items-start gap-2 p-3 bg-blue-50 rounded-lg">
+                                <CheckCircle className="h-4 w-4 text-blue-600 mt-0.5 flex-shrink-0" />
+                                <span className="text-sm text-blue-800">{intervention}</span>
+                              </div>
+                            ))}
+                          </div>
+                        </div>
+
+                        <div className="bg-gray-50 p-3 rounded-lg">
+                          <p className="text-xs text-gray-600">
+                            Tiempo estimado de finalización: {student.prediction.mediumTerm.estimatedCompletionTime}{" "}
+                            semanas
+                          </p>
+                        </div>
+                      </div>
+                    </CardContent>
+                  </Card>
+                ))}
+
+                {getStudentsNeedingIntervention().length === 0 && (
+                  <Card className="border-0 shadow-lg">
+                    <CardContent className="text-center py-8">
+                      <CheckCircle className="h-16 w-16 mx-auto mb-4 text-green-500" />
+                      <p className="text-xl font-medium mb-2 text-gray-900">¡Excelente!</p>
+                      <p className="text-gray-600">Ningún estudiante requiere intervención inmediata</p>
+                    </CardContent>
+                  </Card>
+                )}
+              </TabsContent>
+            </Tabs>
+          )}
+        </CardContent>
+      </Card>
     </div>
   )
 }

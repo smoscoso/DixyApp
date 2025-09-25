@@ -132,7 +132,7 @@ export default function StudentProgressPage() {
             <p className="text-red-600 mb-4">{error || "No se pudo cargar el progreso"}</p>
             <Button onClick={() => router.push("/teacher/dashboard")}>
               <ArrowLeft className="h-4 w-4 mr-2" />
-              Volver al Dashboard
+              Volver al Panel de Control
             </Button>
           </CardContent>
         </Card>

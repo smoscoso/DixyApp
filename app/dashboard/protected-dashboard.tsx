@@ -55,7 +55,7 @@ export default function ProtectedDashboard({ initialStats }: ProtectedDashboardP
             </Button>
           </Link>
           <div className="text-center bg-white p-4 rounded-2xl shadow-lg border-4 border-indigo-400">
-            <h1 className="text-3xl font-bold text-indigo-600">Dashboard Administrativo</h1>
+            <h1 className="text-3xl font-bold text-indigo-600">Panel de Control Administrativo</h1>
             <p className="text-xl text-indigo-500">Estadísticas de usuarios y progreso</p>
           </div>
           <Button

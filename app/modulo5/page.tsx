@@ -17,6 +17,12 @@ interface SequenceItem {
   correctOrder: number
 }
 
+interface SequenceLevel {
+  title: string
+  instruction: string
+  items: SequenceItem[]
+}
+
 export default function Modulo5Page() {
   const [currentLevel, setCurrentLevel] = useState(1)
   const [sequenceItems, setSequenceItems] = useState<SequenceItem[]>([])
@@ -25,6 +31,7 @@ export default function Modulo5Page() {
   const [showSuccess, setShowSuccess] = useState(false)
   const [attempts, setAttempts] = useState(0)
   const [userId, setUserId] = useState<string | null>(null)
+  const [currentSequence, setCurrentSequence] = useState<SequenceLevel | null>(null)
   const router = useRouter()
 
   // Verificar usuario
@@ -47,298 +54,344 @@ export default function Modulo5Page() {
   }, [currentLevel])
 
   const generateSequenceForLevel = (level: number) => {
-    const sequences = [
+    const sequences: SequenceLevel[] = [
       // Nivel 1: Rutina matutina
-      [
-        {
-          id: "1",
-          description: "Despertarse",
-          image: "/placeholder.svg?height=100&width=100&text=😴",
-          correctOrder: 1,
-        },
-        {
-          id: "2",
-          description: "Lavarse los dientes",
-          image: "/placeholder.svg?height=100&width=100&text=🦷",
-          correctOrder: 2,
-        },
-        { id: "3", description: "Desayunar", image: "/placeholder.svg?height=100&width=100&text=🥞", correctOrder: 3 },
-        {
-          id: "4",
-          description: "Ir a la escuela",
-          image: "/placeholder.svg?height=100&width=100&text=🎒",
-          correctOrder: 4,
-        },
-      ],
+      {
+        title: "Rutina Matutina",
+        instruction: "Ordena los pasos para una rutina matutina típica",
+        items: [
+          {
+            id: "1",
+            description: "Despertarse",
+            image: "/placeholder.svg?height=100&width=100&text=😴",
+            correctOrder: 1,
+          },
+          {
+            id: "2",
+            description: "Lavarse los dientes",
+            image: "/placeholder.svg?height=100&width=100&text=🦷",
+            correctOrder: 2,
+          },
+          {
+            id: "3",
+            description: "Desayunar",
+            image: "/placeholder.svg?height=100&width=100&text=🥞",
+            correctOrder: 3,
+          },
+          {
+            id: "4",
+            description: "Ir a la escuela",
+            image: "/placeholder.svg?height=100&width=100&text=🎒",
+            correctOrder: 4,
+          },
+        ],
+      },
       // Nivel 2: Hacer un sándwich
-      [
-        {
-          id: "1",
-          description: "Sacar el pan",
-          image: "/placeholder.svg?height=100&width=100&text=🍞",
-          correctOrder: 1,
-        },
-        {
-          id: "2",
-          description: "Poner mantequilla",
-          image: "/placeholder.svg?height=100&width=100&text=🧈",
-          correctOrder: 2,
-        },
-        {
-          id: "3",
-          description: "Añadir jamón",
-          image: "/placeholder.svg?height=100&width=100&text=🥓",
-          correctOrder: 3,
-        },
-        {
-          id: "4",
-          description: "Cerrar el sándwich",
-          image: "/placeholder.svg?height=100&width=100&text=🥪",
-          correctOrder: 4,
-        },
-      ],
+      {
+        title: "Preparar un Sándwich",
+        instruction: "Ordena los pasos para hacer un delicioso sándwich",
+        items: [
+          {
+            id: "1",
+            description: "Sacar el pan",
+            image: "/placeholder.svg?height=100&width=100&text=🍞",
+            correctOrder: 1,
+          },
+          {
+            id: "2",
+            description: "Poner mantequilla",
+            image: "/placeholder.svg?height=100&width=100&text=🧈",
+            correctOrder: 2,
+          },
+          {
+            id: "3",
+            description: "Añadir jamón",
+            image: "/placeholder.svg?height=100&width=100&text=🥓",
+            correctOrder: 3,
+          },
+          {
+            id: "4",
+            description: "Cerrar el sándwich",
+            image: "/placeholder.svg?height=100&width=100&text=🥪",
+            correctOrder: 4,
+          },
+        ],
+      },
       // Nivel 3: Lavarse las manos
-      [
-        {
-          id: "1",
-          description: "Abrir el grifo",
-          image: "/placeholder.svg?height=100&width=100&text=🚿",
-          correctOrder: 1,
-        },
-        {
-          id: "2",
-          description: "Mojar las manos",
-          image: "/placeholder.svg?height=100&width=100&text=💧",
-          correctOrder: 2,
-        },
-        {
-          id: "3",
-          description: "Aplicar jabón",
-          image: "/placeholder.svg?height=100&width=100&text=🧼",
-          correctOrder: 3,
-        },
-        {
-          id: "4",
-          description: "Frotar 20 segundos",
-          image: "/placeholder.svg?height=100&width=100&text=👏",
-          correctOrder: 4,
-        },
-        { id: "5", description: "Enjuagar", image: "/placeholder.svg?height=100&width=100&text=💦", correctOrder: 5 },
-      ],
+      {
+        title: "Lavarse las Manos",
+        instruction: "Ordena los pasos para lavarse las manos correctamente",
+        items: [
+          {
+            id: "1",
+            description: "Abrir el grifo",
+            image: "/placeholder.svg?height=100&width=100&text=🚿",
+            correctOrder: 1,
+          },
+          {
+            id: "2",
+            description: "Mojar las manos",
+            image: "/placeholder.svg?height=100&width=100&text=💧",
+            correctOrder: 2,
+          },
+          {
+            id: "3",
+            description: "Aplicar jabón",
+            image: "/placeholder.svg?height=100&width=100&text=🧼",
+            correctOrder: 3,
+          },
+          {
+            id: "4",
+            description: "Frotar 20 segundos",
+            image: "/placeholder.svg?height=100&width=100&text=👏",
+            correctOrder: 4,
+          },
+          { id: "5", description: "Enjuagar", image: "/placeholder.svg?height=100&width=100&text=💦", correctOrder: 5 },
+        ],
+      },
       // Nivel 4: Plantar una semilla
-      [
-        {
-          id: "1",
-          description: "Preparar la maceta",
-          image: "/placeholder.svg?height=100&width=100&text=🪴",
-          correctOrder: 1,
-        },
-        {
-          id: "2",
-          description: "Añadir tierra",
-          image: "/placeholder.svg?height=100&width=100&text=🌱",
-          correctOrder: 2,
-        },
-        {
-          id: "3",
-          description: "Plantar la semilla",
-          image: "/placeholder.svg?height=100&width=100&text=🌰",
-          correctOrder: 3,
-        },
-        {
-          id: "4",
-          description: "Regar la planta",
-          image: "/placeholder.svg?height=100&width=100&text=💧",
-          correctOrder: 4,
-        },
-        {
-          id: "5",
-          description: "Poner al sol",
-          image: "/placeholder.svg?height=100&width=100&text=☀️",
-          correctOrder: 5,
-        },
-      ],
+      {
+        title: "Plantar una Semilla",
+        instruction: "Ordena los pasos para plantar y cuidar una semilla",
+        items: [
+          {
+            id: "1",
+            description: "Preparar la maceta",
+            image: "/placeholder.svg?height=100&width=100&text=🪴",
+            correctOrder: 1,
+          },
+          {
+            id: "2",
+            description: "Añadir tierra",
+            image: "/placeholder.svg?height=100&width=100&text=🌱",
+            correctOrder: 2,
+          },
+          {
+            id: "3",
+            description: "Plantar la semilla",
+            image: "/placeholder.svg?height=100&width=100&text=🌰",
+            correctOrder: 3,
+          },
+          {
+            id: "4",
+            description: "Regar la planta",
+            image: "/placeholder.svg?height=100&width=100&text=💧",
+            correctOrder: 4,
+          },
+          {
+            id: "5",
+            description: "Poner al sol",
+            image: "/placeholder.svg?height=100&width=100&text=☀️",
+            correctOrder: 5,
+          },
+        ],
+      },
       // Nivel 5: Cruzar la calle
-      [
-        {
-          id: "1",
-          description: "Llegar al semáforo",
-          image: "/placeholder.svg?height=100&width=100&text=🚦",
-          correctOrder: 1,
-        },
-        {
-          id: "2",
-          description: "Esperar luz verde",
-          image: "/placeholder.svg?height=100&width=100&text=🟢",
-          correctOrder: 2,
-        },
-        {
-          id: "3",
-          description: "Mirar a ambos lados",
-          image: "/placeholder.svg?height=100&width=100&text=👀",
-          correctOrder: 3,
-        },
-        {
-          id: "4",
-          description: "Cruzar rápido",
-          image: "/placeholder.svg?height=100&width=100&text=🚶",
-          correctOrder: 4,
-        },
-      ],
+      {
+        title: "Cruzar la Calle Seguro",
+        instruction: "Ordena los pasos para cruzar la calle de forma segura",
+        items: [
+          {
+            id: "1",
+            description: "Llegar al semáforo",
+            image: "/placeholder.svg?height=100&width=100&text=🚦",
+            correctOrder: 1,
+          },
+          {
+            id: "2",
+            description: "Esperar luz verde",
+            image: "/placeholder.svg?height=100&width=100&text=🟢",
+            correctOrder: 2,
+          },
+          {
+            id: "3",
+            description: "Mirar a ambos lados",
+            image: "/placeholder.svg?height=100&width=100&text=👀",
+            correctOrder: 3,
+          },
+          {
+            id: "4",
+            description: "Cruzar rápido",
+            image: "/placeholder.svg?height=100&width=100&text=🚶",
+            correctOrder: 4,
+          },
+        ],
+      },
       // Nivel 6: Hacer la cama
-      [
-        {
-          id: "1",
-          description: "Quitar las almohadas",
-          image: "/placeholder.svg?height=100&width=100&text=🛏️",
-          correctOrder: 1,
-        },
-        {
-          id: "2",
-          description: "Estirar las sábanas",
-          image: "/placeholder.svg?height=100&width=100&text=📋",
-          correctOrder: 2,
-        },
-        {
-          id: "3",
-          description: "Poner las almohadas",
-          image: "/placeholder.svg?height=100&width=100&text=💤",
-          correctOrder: 3,
-        },
-        {
-          id: "4",
-          description: "Acomodar la manta",
-          image: "/placeholder.svg?height=100&width=100&text=🛌",
-          correctOrder: 4,
-        },
-      ],
+      {
+        title: "Hacer la Cama",
+        instruction: "Ordena los pasos para hacer la cama correctamente",
+        items: [
+          {
+            id: "1",
+            description: "Quitar las almohadas",
+            image: "/placeholder.svg?height=100&width=100&text=🛏️",
+            correctOrder: 1,
+          },
+          {
+            id: "2",
+            description: "Estirar las sábanas",
+            image: "/placeholder.svg?height=100&width=100&text=📋",
+            correctOrder: 2,
+          },
+          {
+            id: "3",
+            description: "Poner las almohadas",
+            image: "/placeholder.svg?height=100&width=100&text=💤",
+            correctOrder: 3,
+          },
+          {
+            id: "4",
+            description: "Acomodar la manta",
+            image: "/placeholder.svg?height=100&width=100&text=🛌",
+            correctOrder: 4,
+          },
+        ],
+      },
       // Nivel 7: Estudiar para un examen
-      [
-        {
-          id: "1",
-          description: "Organizar materiales",
-          image: "/placeholder.svg?height=100&width=100&text=📚",
-          correctOrder: 1,
-        },
-        {
-          id: "2",
-          description: "Leer los apuntes",
-          image: "/placeholder.svg?height=100&width=100&text=📖",
-          correctOrder: 2,
-        },
-        {
-          id: "3",
-          description: "Hacer resúmenes",
-          image: "/placeholder.svg?height=100&width=100&text=✏️",
-          correctOrder: 3,
-        },
-        {
-          id: "4",
-          description: "Practicar ejercicios",
-          image: "/placeholder.svg?height=100&width=100&text=📝",
-          correctOrder: 4,
-        },
-        {
-          id: "5",
-          description: "Repasar antes del examen",
-          image: "/placeholder.svg?height=100&width=100&text=🔄",
-          correctOrder: 5,
-        },
-      ],
+      {
+        title: "Estudiar para un Examen",
+        instruction: "Ordena los pasos para estudiar efectivamente para un examen",
+        items: [
+          {
+            id: "1",
+            description: "Organizar materiales",
+            image: "/placeholder.svg?height=100&width=100&text=📚",
+            correctOrder: 1,
+          },
+          {
+            id: "2",
+            description: "Leer los apuntes",
+            image: "/placeholder.svg?height=100&width=100&text=📖",
+            correctOrder: 2,
+          },
+          {
+            id: "3",
+            description: "Hacer resúmenes",
+            image: "/placeholder.svg?height=100&width=100&text=✏️",
+            correctOrder: 3,
+          },
+          {
+            id: "4",
+            description: "Practicar ejercicios",
+            image: "/placeholder.svg?height=100&width=100&text=📝",
+            correctOrder: 4,
+          },
+          {
+            id: "5",
+            description: "Repasar antes del examen",
+            image: "/placeholder.svg?height=100&width=100&text=🔄",
+            correctOrder: 5,
+          },
+        ],
+      },
       // Nivel 8: Preparar una ensalada
-      [
-        {
-          id: "1",
-          description: "Lavar las verduras",
-          image: "/placeholder.svg?height=100&width=100&text=🥬",
-          correctOrder: 1,
-        },
-        {
-          id: "2",
-          description: "Cortar en trozos",
-          image: "/placeholder.svg?height=100&width=100&text=🔪",
-          correctOrder: 2,
-        },
-        {
-          id: "3",
-          description: "Mezclar en el bowl",
-          image: "/placeholder.svg?height=100&width=100&text=🥗",
-          correctOrder: 3,
-        },
-        {
-          id: "4",
-          description: "Añadir aderezo",
-          image: "/placeholder.svg?height=100&width=100&text=🍯",
-          correctOrder: 4,
-        },
-      ],
+      {
+        title: "Preparar una Ensalada",
+        instruction: "Ordena los pasos para preparar una ensalada fresca",
+        items: [
+          {
+            id: "1",
+            description: "Lavar las verduras",
+            image: "/placeholder.svg?height=100&width=100&text=🥬",
+            correctOrder: 1,
+          },
+          {
+            id: "2",
+            description: "Cortar en trozos",
+            image: "/placeholder.svg?height=100&width=100&text=🔪",
+            correctOrder: 2,
+          },
+          {
+            id: "3",
+            description: "Mezclar en el bowl",
+            image: "/placeholder.svg?height=100&width=100&text=🥗",
+            correctOrder: 3,
+          },
+          {
+            id: "4",
+            description: "Añadir aderezo",
+            image: "/placeholder.svg?height=100&width=100&text=🍯",
+            correctOrder: 4,
+          },
+        ],
+      },
       // Nivel 9: Día de lluvia
-      [
-        {
-          id: "1",
-          description: "Ver las nubes",
-          image: "/placeholder.svg?height=100&width=100&text=☁️",
-          correctOrder: 1,
-        },
-        {
-          id: "2",
-          description: "Empezar a llover",
-          image: "/placeholder.svg?height=100&width=100&text=🌧️",
-          correctOrder: 2,
-        },
-        {
-          id: "3",
-          description: "Abrir el paraguas",
-          image: "/placeholder.svg?height=100&width=100&text=☂️",
-          correctOrder: 3,
-        },
-        {
-          id: "4",
-          description: "Buscar refugio",
-          image: "/placeholder.svg?height=100&width=100&text=🏠",
-          correctOrder: 4,
-        },
-        {
-          id: "5",
-          description: "Esperar que pare",
-          image: "/placeholder.svg?height=100&width=100&text=⏰",
-          correctOrder: 5,
-        },
-      ],
+      {
+        title: "Prepararse para la Lluvia",
+        instruction: "Ordena los pasos de lo que sucede en un día lluvioso",
+        items: [
+          {
+            id: "1",
+            description: "Ver las nubes",
+            image: "/placeholder.svg?height=100&width=100&text=☁️",
+            correctOrder: 1,
+          },
+          {
+            id: "2",
+            description: "Empezar a llover",
+            image: "/placeholder.svg?height=100&width=100&text=🌧️",
+            correctOrder: 2,
+          },
+          {
+            id: "3",
+            description: "Abrir el paraguas",
+            image: "/placeholder.svg?height=100&width=100&text=☂️",
+            correctOrder: 3,
+          },
+          {
+            id: "4",
+            description: "Buscar refugio",
+            image: "/placeholder.svg?height=100&width=100&text=🏠",
+            correctOrder: 4,
+          },
+          {
+            id: "5",
+            description: "Esperar que pare",
+            image: "/placeholder.svg?height=100&width=100&text=⏰",
+            correctOrder: 5,
+          },
+        ],
+      },
       // Nivel 10: Ciclo del agua
-      [
-        { id: "1", description: "Evaporación", image: "/placeholder.svg?height=100&width=100&text=☀️", correctOrder: 1 },
-        {
-          id: "2",
-          description: "Condensación",
-          image: "/placeholder.svg?height=100&width=100&text=☁️",
-          correctOrder: 2,
-        },
-        {
-          id: "3",
-          description: "Precipitación",
-          image: "/placeholder.svg?height=100&width=100&text=🌧️",
-          correctOrder: 3,
-        },
-        {
-          id: "4",
-          description: "Acumulación",
-          image: "/placeholder.svg?height=100&width=100&text=🌊",
-          correctOrder: 4,
-        },
-      ],
+      {
+        title: "El Ciclo del Agua",
+        instruction: "Ordena las etapas del ciclo natural del agua",
+        items: [
+          {
+            id: "1",
+            description: "Evaporación",
+            image: "/placeholder.svg?height=100&width=100&text=☀️",
+            correctOrder: 1,
+          },
+          {
+            id: "2",
+            description: "Condensación",
+            image: "/placeholder.svg?height=100&width=100&text=☁️",
+            correctOrder: 2,
+          },
+          {
+            id: "3",
+            description: "Precipitación",
+            image: "/placeholder.svg?height=100&width=100&text=🌧️",
+            correctOrder: 3,
+          },
+          {
+            id: "4",
+            description: "Acumulación",
+            image: "/placeholder.svg?height=100&width=100&text=🌊",
+            correctOrder: 4,
+          },
+        ],
+      },
     ]
 
-    // Mezclar el orden de los elementos para cada nivel
-    const levelSequence = [...sequences[level - 1]]
+    // Obtener la secuencia del nivel actual
+    const levelSequence = sequences[level - 1]
+    setCurrentSequence(levelSequence)
 
-    // Generar posiciones completamente aleatorias para cada elemento
-    const shuffledSequence = levelSequence
-      .map((item) => ({
-        ...item,
-        // Mantener el orden correcto pero cambiar las posiciones visuales aleatoriamente
-      }))
-      .sort(() => Math.random() - 0.5)
+    // Mezclar el orden de los elementos para cada nivel
+    const shuffledSequence = [...levelSequence.items].sort(() => Math.random() - 0.5)
 
     setSequenceItems(shuffledSequence)
   }
@@ -452,6 +505,16 @@ export default function Modulo5Page() {
           </div>
         </div>
 
+        {/* Enunciado del nivel actual */}
+        {currentSequence && (
+          <div className="mb-8 text-center">
+            <div className="inline-block bg-white p-6 rounded-2xl shadow-lg border-4 border-purple-400">
+              <h2 className="text-2xl font-bold text-purple-600 mb-2">{currentSequence.title}</h2>
+              <p className="text-lg text-gray-700">{currentSequence.instruction}</p>
+            </div>
+          </div>
+        )}
+
         <div className="grid grid-cols-1 lg:grid-cols-2 gap-8 max-w-6xl mx-auto">
           {/* Área de secuencias disponibles */}
           <Card className="rounded-3xl overflow-hidden border-4 border-purple-400 shadow-xl">
@@ -517,6 +580,7 @@ export default function Modulo5Page() {
                   <div className="text-center py-8 text-gray-500">
                     <Clock className="h-16 w-16 mx-auto mb-4 opacity-50" />
                     <p className="text-xl">Selecciona los pasos en orden</p>
+                    {currentSequence && <p className="text-sm mt-2 text-purple-600">{currentSequence.instruction}</p>}
                   </div>
                 )}
               </div>

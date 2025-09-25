@@ -51,7 +51,7 @@ export default function DashboardAuth({ onAuthenticated }: DashboardAuthProps) {
     <div className="min-h-screen flex items-center justify-center bg-gradient-to-b from-gray-100 to-gray-200">
       <Card className="w-full max-w-md">
         <CardHeader>
-          <CardTitle className="text-2xl text-center">Acceso al Dashboard</CardTitle>
+          <CardTitle className="text-2xl text-center">Acceso al Panel de Control</CardTitle>
         </CardHeader>
         <CardContent>
           <form onSubmit={handleSubmit} className="space-y-4">

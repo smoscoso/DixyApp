@@ -1,543 +1,325 @@
-/**
- * Red Neuronal de Predicción de Rendimiento Futuro
- * Analiza patrones históricos para predecir el progreso futuro de estudiantes
- */
-
-export interface PredictionInput {
-  // Datos históricos de progreso (últimas 4 semanas)
-  progressTrend: number[] // Array de 4 valores (progreso semanal)
-  accuracyTrend: number[] // Array de 4 valores (precisión semanal)
-  sessionFrequency: number[] // Array de 4 valores (frecuencia de sesiones)
-
-  // Datos actuales del estudiante
-  currentProgress: number // Progreso actual total (0-1)
-  currentAccuracy: number // Precisión actual promedio (0-1)
-  learningVelocity: number // Velocidad de aprendizaje (niveles/semana)
-  consistencyScore: number // Qué tan consistente es (0-1)
-
-  // Factores del estudiante
-  age: number // Normalizado (0-1)
-  dyslexiaLevel: number // leve=0.33, moderado=0.66, severo=1.0
-  dyslexiaType: number // fonologica=0.25, superficial=0.5, mixta=0.75, kinestesica=1.0
-  hasKinestheticDyslexia: number // 0 o 1
-
-  // Factores temporales
-  weeksActive: number // Semanas activo en la plataforma
-  averageSessionDuration: number // Duración promedio de sesión (normalizada)
-  motivationTrend: number // Tendencia de motivación (-1 a 1)
+interface PredictionInput {
+  studentId: string
+  currentProgress: number[]
+  accuracyTrends: number[]
+  sessionFrequency: number[]
+  motivationIndicators: number[]
+  dyslexiaProfile: {
+    level: string
+    type: string
+    hasKinesthetic: boolean
+  }
 }
 
-export interface PredictionResult {
-  // Predicciones a corto plazo (1-2 semanas)
-  shortTermPredictions: {
-    expectedProgress: number // Progreso esperado en 2 semanas (0-100%)
-    expectedAccuracy: number // Precisión esperada (0-100%)
-    riskOfDropout: number // Riesgo de abandono (0-100%)
-    motivationForecast: "creciente" | "estable" | "decreciente"
-  }
-
-  // Predicciones a mediano plazo (1 mes)
-  mediumTermPredictions: {
+interface PredictionResult {
+  shortTerm: {
     expectedProgress: number
     expectedAccuracy: number
-    modulesLikelyToComplete: number[]
-    estimatedCompletionTime: number // Días para completar módulos actuales
+    riskOfDropout: number
+    timeframe: "1-2 semanas"
   }
-
-  // Predicciones a largo plazo (3 meses)
-  longTermPredictions: {
-    expectedProgress: number
-    expectedAccuracy: number
-    overallSuccessProbability: number // Probabilidad de éxito general (0-100%)
+  mediumTerm: {
+    modulesToComplete: number[]
+    estimatedCompletionTime: number
+    interventionNeeded: boolean
+    timeframe: "1 mes"
+  }
+  longTerm: {
+    overallSuccessProbability: number
     recommendedInterventions: string[]
+    projectedOutcome: string
+    timeframe: "3 meses"
   }
-
-  // Análisis de tendencias
-  trendAnalysis: {
+  trends: {
     progressTrend: "mejorando" | "estable" | "empeorando"
     accuracyTrend: "mejorando" | "estable" | "empeorando"
-    engagementTrend: "aumentando" | "estable" | "disminuyendo"
+    engagementTrend: "alta" | "media" | "baja"
     overallTrajectory: "positiva" | "neutral" | "preocupante"
   }
-
-  // Recomendaciones específicas
-  recommendations: {
-    immediate: string[] // Acciones inmediatas (1-2 semanas)
-    shortTerm: string[] // Acciones a corto plazo (1 mes)
-    longTerm: string[] // Estrategias a largo plazo (3 meses)
-  }
-
-  confidence: number // Confianza en las predicciones (0-100%)
+  confidence: number
 }
 
-export class PredictionNetwork {
-  private inputNodes = 20
-  private hiddenNodes1 = 32
-  private hiddenNodes2 = 24
-  private hiddenNodes3 = 16
-  private outputNodes = 15 // Diferentes aspectos de predicción
-
-  private weightsIH1!: number[][]
-  private weightsH1H2!: number[][]
-  private weightsH2H3!: number[][]
-  private weightsH3O!: number[][]
-  private biasH1!: number[]
-  private biasH2!: number[]
-  private biasH3!: number[]
-  private biasO!: number[]
+class PredictionNetwork {
+  private weights: {
+    input_hidden1: number[][]
+    hidden1_hidden2: number[][]
+    hidden2_hidden3: number[][]
+    hidden3_output: number[][]
+  }
 
   constructor() {
-    this.initializeWeights()
-    this.loadPretrainedWeights()
-  }
-
-  private initializeWeights(): void {
-    // Inicialización Xavier/Glorot para mejor convergencia
-    const limitH1 = Math.sqrt(6 / (this.inputNodes + this.hiddenNodes1))
-    const limitH2 = Math.sqrt(6 / (this.hiddenNodes1 + this.hiddenNodes2))
-    const limitH3 = Math.sqrt(6 / (this.hiddenNodes2 + this.hiddenNodes3))
-    const limitO = Math.sqrt(6 / (this.hiddenNodes3 + this.outputNodes))
-
-    // Pesos entrada -> capa oculta 1
-    this.weightsIH1 = Array(this.hiddenNodes1)
-      .fill(0)
-      .map(() =>
-        Array(this.inputNodes)
-          .fill(0)
-          .map(() => (Math.random() * 2 - 1) * limitH1),
-      )
-
-    // Pesos capa oculta 1 -> capa oculta 2
-    this.weightsH1H2 = Array(this.hiddenNodes2)
-      .fill(0)
-      .map(() =>
-        Array(this.hiddenNodes1)
-          .fill(0)
-          .map(() => (Math.random() * 2 - 1) * limitH2),
-      )
-
-    // Pesos capa oculta 2 -> capa oculta 3
-    this.weightsH2H3 = Array(this.hiddenNodes3)
-      .fill(0)
-      .map(() =>
-        Array(this.hiddenNodes2)
-          .fill(0)
-          .map(() => (Math.random() * 2 - 1) * limitH3),
-      )
-
-    // Pesos capa oculta 3 -> salida
-    this.weightsH3O = Array(this.outputNodes)
-      .fill(0)
-      .map(() =>
-        Array(this.hiddenNodes3)
-          .fill(0)
-          .map(() => (Math.random() * 2 - 1) * limitO),
-      )
-
-    // Bias
-    this.biasH1 = Array(this.hiddenNodes1).fill(0)
-    this.biasH2 = Array(this.hiddenNodes2).fill(0)
-    this.biasH3 = Array(this.hiddenNodes3).fill(0)
-    this.biasO = Array(this.outputNodes).fill(0)
-  }
-
-  private loadPretrainedWeights(): void {
-    // Pesos preentrenados optimizados para predicción temporal
-
-    // Dar más peso a las tendencias recientes
-    for (let i = 0; i < 4; i++) {
-      this.weightsIH1[i][i] = 0.9 - i * 0.1 // Más peso a datos más recientes
-      this.weightsIH1[i + 4][i + 4] = 0.8 - i * 0.1
+    this.weights = {
+      input_hidden1: this.initializeWeights(20, 32),
+      hidden1_hidden2: this.initializeWeights(32, 24),
+      hidden2_hidden3: this.initializeWeights(24, 16),
+      hidden3_output: this.initializeWeights(16, 15),
     }
-
-    // Pesos para velocidad de aprendizaje y consistencia
-    this.weightsIH1[8][10] = 0.85 // learningVelocity
-    this.weightsIH1[9][11] = 0.8 // consistencyScore
-
-    // Factores de dislexia
-    this.weightsIH1[10][13] = 0.7 // dyslexiaLevel
-    this.weightsIH1[11][14] = 0.6 // dyslexiaType
-
-    // Tendencia de motivación es crucial para predicciones
-    this.weightsIH1[12][18] = 0.9 // motivationTrend
-
-    // Ajustar bias para mejor predicción
-    this.biasH1[0] = -0.1
-    this.biasH2[0] = 0.05
-    this.biasO[0] = 0.1 // Predicción de progreso a corto plazo
   }
 
-  private sigmoid(x: number): number {
-    return 1 / (1 + Math.exp(-Math.max(-500, Math.min(500, x))))
+  private initializeWeights(inputSize: number, outputSize: number): number[][] {
+    const weights: number[][] = []
+    for (let i = 0; i < inputSize; i++) {
+      weights[i] = []
+      for (let j = 0; j < outputSize; j++) {
+        // Xavier initialization
+        weights[i][j] = (Math.random() - 0.5) * 2 * Math.sqrt(6 / (inputSize + outputSize))
+      }
+    }
+    return weights
   }
 
   private relu(x: number): number {
     return Math.max(0, x)
   }
 
-  private tanh(x: number): number {
-    return Math.tanh(x)
-  }
-
   private leakyRelu(x: number): number {
     return x > 0 ? x : 0.01 * x
   }
 
-  public predict(input: PredictionInput): PredictionResult {
-    // Convertir input a array normalizado
-    const inputArray = [
-      ...input.progressTrend,
-      ...input.accuracyTrend,
-      ...input.sessionFrequency,
-      input.currentProgress,
-      input.currentAccuracy,
-      input.learningVelocity,
-      input.consistencyScore,
-      input.age,
-      input.dyslexiaLevel,
-      input.dyslexiaType,
-      input.hasKinestheticDyslexia,
-      input.weeksActive / 52, // Normalizar semanas a año
-      input.averageSessionDuration,
-      input.motivationTrend,
-    ]
-
-    // Forward pass
-    const output = this.forward(inputArray)
-
-    // Interpretar resultados
-    return this.interpretPredictions(output, input)
+  private tanh(x: number): number {
+    return Math.tanh(x)
   }
 
-  private forward(inputs: number[]): number[] {
+  private sigmoid(x: number): number {
+    return 1 / (1 + Math.exp(-x))
+  }
+
+  private normalizeInput(data: PredictionInput): number[] {
+    const input: number[] = []
+
+    // Progreso actual (6 valores - uno por módulo)
+    for (let i = 0; i < 6; i++) {
+      input.push((data.currentProgress[i] || 0) / 100)
+    }
+
+    // Tendencias de precisión (4 valores - últimas 4 semanas)
+    for (let i = 0; i < 4; i++) {
+      input.push((data.accuracyTrends[i] || 0) / 100)
+    }
+
+    // Frecuencia de sesiones (4 valores - últimas 4 semanas)
+    for (let i = 0; i < 4; i++) {
+      input.push(Math.min((data.sessionFrequency[i] || 0) / 10, 1)) // Normalizar a máximo 10 sesiones por semana
+    }
+
+    // Indicadores de motivación (3 valores)
+    for (let i = 0; i < 3; i++) {
+      input.push((data.motivationIndicators[i] || 0) / 100)
+    }
+
+    // Perfil de dislexia (3 valores)
+    input.push(data.dyslexiaProfile.level === "leve" ? 0.33 : data.dyslexiaProfile.level === "moderado" ? 0.66 : 1.0)
+    input.push(
+      data.dyslexiaProfile.type === "fonologica"
+        ? 0.25
+        : data.dyslexiaProfile.type === "superficial"
+          ? 0.5
+          : data.dyslexiaProfile.type === "mixta"
+            ? 0.75
+            : 1.0,
+    )
+    input.push(data.dyslexiaProfile.hasKinesthetic ? 1 : 0)
+
+    return input
+  }
+
+  private forwardPass(input: number[]): number[] {
     // Capa oculta 1
-    const hidden1 = Array(this.hiddenNodes1).fill(0)
-    for (let i = 0; i < this.hiddenNodes1; i++) {
-      let sum = this.biasH1[i]
-      for (let j = 0; j < this.inputNodes; j++) {
-        sum += inputs[j] * this.weightsIH1[i][j]
+    const hidden1 = new Array(32).fill(0)
+    for (let j = 0; j < 32; j++) {
+      let sum = 0
+      for (let i = 0; i < 20; i++) {
+        sum += input[i] * this.weights.input_hidden1[i][j]
       }
-      hidden1[i] = this.leakyRelu(sum)
+      hidden1[j] = this.leakyRelu(sum)
     }
 
     // Capa oculta 2
-    const hidden2 = Array(this.hiddenNodes2).fill(0)
-    for (let i = 0; i < this.hiddenNodes2; i++) {
-      let sum = this.biasH2[i]
-      for (let j = 0; j < this.hiddenNodes1; j++) {
-        sum += hidden1[j] * this.weightsH1H2[i][j]
+    const hidden2 = new Array(24).fill(0)
+    for (let j = 0; j < 24; j++) {
+      let sum = 0
+      for (let i = 0; i < 32; i++) {
+        sum += hidden1[i] * this.weights.hidden1_hidden2[i][j]
       }
-      hidden2[i] = this.relu(sum)
+      hidden2[j] = this.relu(sum)
     }
 
     // Capa oculta 3
-    const hidden3 = Array(this.hiddenNodes3).fill(0)
-    for (let i = 0; i < this.hiddenNodes3; i++) {
-      let sum = this.biasH3[i]
-      for (let j = 0; j < this.hiddenNodes2; j++) {
-        sum += hidden2[j] * this.weightsH2H3[i][j]
+    const hidden3 = new Array(16).fill(0)
+    for (let j = 0; j < 16; j++) {
+      let sum = 0
+      for (let i = 0; i < 24; i++) {
+        sum += hidden2[i] * this.weights.hidden2_hidden3[i][j]
       }
-      hidden3[i] = this.tanh(sum)
+      hidden3[j] = this.tanh(sum)
     }
 
     // Capa de salida
-    const output = Array(this.outputNodes).fill(0)
-    for (let i = 0; i < this.outputNodes; i++) {
-      let sum = this.biasO[i]
-      for (let j = 0; j < this.hiddenNodes3; j++) {
-        sum += hidden3[j] * this.weightsH3O[i][j]
+    const output = new Array(15).fill(0)
+    for (let j = 0; j < 15; j++) {
+      let sum = 0
+      for (let i = 0; i < 16; i++) {
+        sum += hidden3[i] * this.weights.hidden3_output[i][j]
       }
-      output[i] = this.sigmoid(sum)
+      output[j] = this.sigmoid(sum)
     }
 
     return output
   }
 
-  private interpretPredictions(output: number[], input: PredictionInput): PredictionResult {
-    const [
-      shortTermProgress,
-      shortTermAccuracy,
-      dropoutRisk,
-      motivationDirection,
-      mediumTermProgress,
-      mediumTermAccuracy,
-      completionTimeEstimate,
-      longTermProgress,
-      longTermAccuracy,
-      successProbability,
-      progressTrendDirection,
-      accuracyTrendDirection,
-      engagementDirection,
-      overallTrajectory,
-      confidence,
-    ] = output
-
-    // Calcular predicciones a corto plazo
-    const currentProgressPercent = input.currentProgress * 100
-    const shortTermPredictions = {
-      expectedProgress: Math.min(100, currentProgressPercent + shortTermProgress * 20),
-      expectedAccuracy: Math.min(100, (input.currentAccuracy + shortTermAccuracy * 0.2) * 100),
-      riskOfDropout: dropoutRisk * 100,
-      motivationForecast: this.interpretMotivationForecast(motivationDirection),
+  private interpretOutput(output: number[], data: PredictionInput): PredictionResult {
+    // Predicciones a corto plazo
+    const shortTerm = {
+      expectedProgress: Math.round(output[0] * 100),
+      expectedAccuracy: Math.round(output[1] * 100),
+      riskOfDropout: Math.round(output[2] * 100),
+      timeframe: "1-2 semanas" as const,
     }
 
-    // Calcular predicciones a mediano plazo
-    const mediumTermPredictions = {
-      expectedProgress: Math.min(100, currentProgressPercent + mediumTermProgress * 40),
-      expectedAccuracy: Math.min(100, (input.currentAccuracy + mediumTermAccuracy * 0.3) * 100),
-      modulesLikelyToComplete: this.predictModuleCompletion(input, mediumTermProgress),
-      estimatedCompletionTime: Math.round(completionTimeEstimate * 90), // Días
+    // Predicciones a mediano plazo
+    const mediumTerm = {
+      modulesToComplete: this.predictModulesToComplete(output.slice(3, 6), data),
+      estimatedCompletionTime: Math.round(output[6] * 12), // En semanas
+      interventionNeeded: output[7] > 0.6,
+      timeframe: "1 mes" as const,
     }
 
-    // Calcular predicciones a largo plazo
-    const longTermPredictions = {
-      expectedProgress: Math.min(100, currentProgressPercent + longTermProgress * 60),
-      expectedAccuracy: Math.min(100, (input.currentAccuracy + longTermAccuracy * 0.4) * 100),
-      overallSuccessProbability: successProbability * 100,
-      recommendedInterventions: this.generateInterventions(output, input),
+    // Predicciones a largo plazo
+    const longTerm = {
+      overallSuccessProbability: Math.round(output[8] * 100),
+      recommendedInterventions: this.generateInterventions(output.slice(9, 12), data),
+      projectedOutcome: this.getProjectedOutcome(output[8]),
+      timeframe: "3 meses" as const,
     }
 
-    // Análisis de tendencias
-    const trendAnalysis = {
-      progressTrend: this.interpretTrend(progressTrendDirection),
-      accuracyTrend: this.interpretTrend(accuracyTrendDirection),
-      engagementTrend: this.interpretEngagementTrend(engagementDirection),
-      overallTrajectory: this.interpretTrajectory(overallTrajectory),
+    // Tendencias
+    const trends = {
+      progressTrend: this.getTrend(output[12]) as "mejorando" | "estable" | "empeorando",
+      accuracyTrend: this.getTrend(output[13]) as "mejorando" | "estable" | "empeorando",
+      engagementTrend: this.getEngagementTrend(output[14]) as "alta" | "media" | "baja",
+      overallTrajectory: this.getOverallTrajectory(output.slice(12, 15)) as "positiva" | "neutral" | "preocupante",
     }
 
-    // Generar recomendaciones
-    const recommendations = this.generateRecommendations(output, input, trendAnalysis)
+    // Calcular confianza basada en la cantidad de datos disponibles
+    const dataQuality = this.calculateDataQuality(data)
+    const confidence = Math.round(dataQuality * 100)
 
     return {
-      shortTermPredictions,
-      mediumTermPredictions,
-      longTermPredictions,
-      trendAnalysis,
-      recommendations,
-      confidence: confidence * 100,
+      shortTerm,
+      mediumTerm,
+      longTerm,
+      trends,
+      confidence,
     }
   }
 
-  private interpretMotivationForecast(value: number): "creciente" | "estable" | "decreciente" {
-    if (value > 0.6) return "creciente"
-    if (value < 0.4) return "decreciente"
-    return "estable"
+  private predictModulesToComplete(moduleOutputs: number[], data: PredictionInput): number[] {
+    const modules: number[] = []
+    const currentProgress = data.currentProgress
+
+    moduleOutputs.forEach((probability, index) => {
+      const moduleId = index + 1
+      // Si el módulo no está completado y la probabilidad es alta
+      if (currentProgress[index] < 100 && probability > 0.6) {
+        modules.push(moduleId)
+      }
+    })
+
+    return modules
   }
 
-  private interpretTrend(value: number): "mejorando" | "estable" | "empeorando" {
+  private generateInterventions(interventionOutputs: number[], data: PredictionInput): string[] {
+    const interventions: string[] = []
+
+    if (interventionOutputs[0] > 0.7) {
+      interventions.push("Implementar sesiones de refuerzo personalizadas")
+    }
+
+    if (interventionOutputs[1] > 0.6) {
+      interventions.push("Ajustar metodología según tipo de dislexia")
+    }
+
+    if (interventionOutputs[2] > 0.5) {
+      interventions.push("Incorporar estrategias de gamificación")
+    }
+
+    // Intervenciones específicas por tipo de dislexia
+    switch (data.dyslexiaProfile.type) {
+      case "fonologica":
+        interventions.push("Enfocarse en ejercicios de conciencia fonológica")
+        break
+      case "superficial":
+        interventions.push("Usar más estrategias visuales y reconocimiento de patrones")
+        break
+      case "mixta":
+        interventions.push("Combinar estrategias fonológicas y visuales")
+        break
+      case "kinestesica":
+        interventions.push("Incorporar más actividades de movimiento y táctiles")
+        break
+    }
+
+    return interventions.slice(0, 4) // Limitar a 4 intervenciones
+  }
+
+  private getProjectedOutcome(probability: number): string {
+    if (probability > 0.8) return "Excelente - Alta probabilidad de éxito completo"
+    if (probability > 0.6) return "Bueno - Progreso satisfactorio esperado"
+    if (probability > 0.4) return "Regular - Requiere apoyo adicional"
+    return "Preocupante - Necesita intervención inmediata"
+  }
+
+  private getTrend(value: number): string {
     if (value > 0.6) return "mejorando"
     if (value < 0.4) return "empeorando"
     return "estable"
   }
 
-  private interpretEngagementTrend(value: number): "aumentando" | "estable" | "disminuyendo" {
-    if (value > 0.6) return "aumentando"
-    if (value < 0.4) return "disminuyendo"
-    return "estable"
+  private getEngagementTrend(value: number): string {
+    if (value > 0.7) return "alta"
+    if (value < 0.4) return "baja"
+    return "media"
   }
 
-  private interpretTrajectory(value: number): "positiva" | "neutral" | "preocupante" {
-    if (value > 0.6) return "positiva"
-    if (value < 0.4) return "preocupante"
+  private getOverallTrajectory(trendValues: number[]): string {
+    const average = trendValues.reduce((sum, val) => sum + val, 0) / trendValues.length
+    if (average > 0.6) return "positiva"
+    if (average < 0.4) return "preocupante"
     return "neutral"
   }
 
-  private predictModuleCompletion(input: PredictionInput, progressPrediction: number): number[] {
-    // Predecir qué módulos es más probable que complete
-    interface ModulePredictionContext {
-      modules: number[]
-    }
+  private calculateDataQuality(data: PredictionInput): number {
+    let quality = 0
+    let factors = 0
 
-    const modules: ModulePredictionContext["modules"] = []
-    const baseProgress = input.currentProgress
-    const expectedGrowth = progressPrediction * 0.6
+    // Calidad basada en datos de progreso
+    const progressDataPoints = data.currentProgress.filter((p) => p > 0).length
+    quality += (progressDataPoints / 6) * 0.3
+    factors += 0.3
 
-    // Módulos básicos (1-3) más probables si tiene dislexia fonológica/superficial
-    if (input.dyslexiaType <= 0.5 && baseProgress + expectedGrowth > 0.3) {
-      modules.push(1, 2, 3)
-    }
+    // Calidad basada en tendencias de precisión
+    const accuracyDataPoints = data.accuracyTrends.filter((a) => a > 0).length
+    quality += (accuracyDataPoints / 4) * 0.25
+    factors += 0.25
 
-    // Módulos kinestésicos (4-6) si tiene dislexia kinestésica
-    if (input.hasKinestheticDyslexia > 0 && baseProgress + expectedGrowth > 0.4) {
-      modules.push(4, 5, 6)
-    }
+    // Calidad basada en frecuencia de sesiones
+    const sessionDataPoints = data.sessionFrequency.filter((s) => s > 0).length
+    quality += (sessionDataPoints / 4) * 0.25
+    factors += 0.25
 
-    // Módulos avanzados si el progreso es alto
-    if (baseProgress + expectedGrowth > 0.7) {
-      modules.push(...[1, 2, 3, 4, 5, 6].filter((m) => !modules.includes(m)))
-    }
+    // Calidad basada en indicadores de motivación
+    const motivationDataPoints = data.motivationIndicators.filter((m) => m > 0).length
+    quality += (motivationDataPoints / 3) * 0.2
+    factors += 0.2
 
-    return modules.slice(0, 4) // Máximo 4 módulos
+    return Math.min(quality / factors, 1)
   }
 
-  private generateInterventions(output: number[], input: PredictionInput): string[] {
-    const interventions = []
-    const [shortTermProgress, shortTermAccuracy, dropoutRisk] = output
-
-    if (dropoutRisk > 0.7) {
-      interventions.push("Intervención urgente: Alto riesgo de abandono")
-      interventions.push("Implementar sistema de recompensas inmediato")
-    }
-
-    if (shortTermProgress < 0.3) {
-      interventions.push("Ajustar dificultad de ejercicios")
-      interventions.push("Proporcionar apoyo adicional personalizado")
-    }
-
-    if (shortTermAccuracy < 0.4) {
-      interventions.push("Revisar metodología de enseñanza")
-      interventions.push("Aumentar tiempo de práctica en áreas débiles")
-    }
-
-    if (input.motivationTrend < -0.3) {
-      interventions.push("Implementar estrategias de gamificación")
-      interventions.push("Establecer metas más alcanzables")
-    }
-
-    return interventions
-  }
-
-  private generateRecommendations(
-    output: number[],
-    input: PredictionInput,
-    trends: any,
-  ): { immediate: string[]; shortTerm: string[]; longTerm: string[] } {
-    const immediate = []
-    const shortTerm = []
-    const longTerm = []
-
-    // Recomendaciones inmediatas (1-2 semanas)
-    if (output[2] > 0.6) {
-      // Alto riesgo de abandono
-      immediate.push("Contactar al estudiante inmediatamente")
-      immediate.push("Revisar y ajustar la carga de trabajo")
-    }
-
-    if (trends.motivationForecast === "decreciente") {
-      immediate.push("Implementar actividades más atractivas")
-      immediate.push("Celebrar pequeños logros para aumentar motivación")
-    }
-
-    if (input.consistencyScore < 0.4) {
-      immediate.push("Establecer horarios de estudio más estructurados")
-    }
-
-    // Recomendaciones a corto plazo (1 mes)
-    if (trends.progressTrend === "empeorando") {
-      shortTerm.push("Evaluar y modificar estrategia de aprendizaje")
-      shortTerm.push("Considerar apoyo adicional del docente")
-    }
-
-    if (output[1] < 0.5) {
-      // Baja precisión esperada
-      shortTerm.push("Enfocarse en ejercicios de refuerzo")
-      shortTerm.push("Aumentar tiempo de práctica en módulos débiles")
-    }
-
-    if (input.learningVelocity < 0.3) {
-      shortTerm.push("Adaptar ritmo de enseñanza al estudiante")
-      shortTerm.push("Proporcionar material de apoyo adicional")
-    }
-
-    // Recomendaciones a largo plazo (3 meses)
-    if (output[9] < 0.6) {
-      // Baja probabilidad de éxito
-      longTerm.push("Considerar evaluación psicopedagógica adicional")
-      longTerm.push("Desarrollar plan de intervención personalizado")
-    }
-
-    if (trends.overallTrajectory === "preocupante") {
-      longTerm.push("Involucrar a la familia en el proceso de aprendizaje")
-      longTerm.push("Considerar terapias complementarias")
-    }
-
-    longTerm.push("Monitorear progreso mensualmente")
-    longTerm.push("Ajustar objetivos según evolución del estudiante")
-
-    return { immediate, shortTerm, longTerm }
+  public predict(data: PredictionInput): PredictionResult {
+    const normalizedInput = this.normalizeInput(data)
+    const output = this.forwardPass(normalizedInput)
+    return this.interpretOutput(output, data)
   }
 }
 
-// Función helper para preparar datos de predicción
-export function preparePredictionData(progressHistory: any[], student: any): PredictionInput {
-  // Calcular tendencias de las últimas 4 semanas
-  const now = new Date()
-  const fourWeeksAgo = new Date(now.getTime() - 4 * 7 * 24 * 60 * 60 * 1000)
-
-  const recentProgress = progressHistory
-    .filter((p) => new Date(p.date) >= fourWeeksAgo)
-    .sort((a, b) => new Date(a.date).getTime() - new Date(b.date).getTime())
-
-  // Dividir en semanas
-  const weeklyData = Array(4)
-    .fill(0)
-    .map((_, weekIndex) => {
-      const weekStart = new Date(fourWeeksAgo.getTime() + weekIndex * 7 * 24 * 60 * 60 * 1000)
-      const weekEnd = new Date(weekStart.getTime() + 7 * 24 * 60 * 60 * 1000)
-
-      const weekData = recentProgress.filter((p) => {
-        const date = new Date(p.date)
-        return date >= weekStart && date < weekEnd
-      })
-
-      const totalAttempts = weekData.reduce((sum, p) => sum + p.attempts, 0)
-      const totalSuccesses = weekData.reduce((sum, p) => sum + p.successes, 0)
-      const uniqueDays = new Set(weekData.map((p) => new Date(p.date).toDateString())).size
-
-      return {
-        progress: weekData.length > 0 ? weekData.filter((p) => p.successes > 0).length / 10 : 0,
-        accuracy: totalAttempts > 0 ? totalSuccesses / totalAttempts : 0,
-        frequency: uniqueDays / 7, // Días activos en la semana
-      }
-    })
-
-  // Calcular métricas actuales
-  const allProgress = progressHistory.length > 0 ? progressHistory.filter((p) => p.successes > 0).length / (6 * 10) : 0 // 6 módulos, 10 niveles cada uno
-
-  const allAttempts = progressHistory.reduce((sum, p) => sum + p.attempts, 0)
-  const allSuccesses = progressHistory.reduce((sum, p) => sum + p.successes, 0)
-  const currentAccuracy = allAttempts > 0 ? allSuccesses / allAttempts : 0
-
-  // Calcular velocidad de aprendizaje (niveles completados por semana)
-  const weeksActive = Math.max(
-    1,
-    Math.ceil((now.getTime() - new Date(student.createdAt).getTime()) / (7 * 24 * 60 * 60 * 1000)),
-  )
-  const completedLevels = progressHistory.filter((p) => p.successes > 0).length
-  const learningVelocity = completedLevels / weeksActive
-
-  // Calcular consistencia (qué tan regular es la actividad)
-  const activeDays = new Set(progressHistory.map((p) => new Date(p.date).toDateString())).size
-  const possibleDays = Math.min(
-    30,
-    Math.ceil((now.getTime() - new Date(student.createdAt).getTime()) / (24 * 60 * 60 * 1000)),
-  )
-  const consistencyScore = possibleDays > 0 ? activeDays / possibleDays : 0
-
-  // Calcular tendencia de motivación (basada en frecuencia de sesiones recientes vs anteriores)
-  const recentFreq = weeklyData.slice(-2).reduce((sum, w) => sum + w.frequency, 0) / 2
-  const olderFreq = weeklyData.slice(0, 2).reduce((sum, w) => sum + w.frequency, 0) / 2
-  const motivationTrend = olderFreq > 0 ? (recentFreq - olderFreq) / olderFreq : 0
-
-  // Normalizar datos del estudiante
-  const normalizedAge = (student.age - 5) / 13
-  const dyslexiaLevelMap = { leve: 0.33, moderado: 0.66, severo: 1.0 }
-  const dyslexiaTypeMap = { fonologica: 0.25, superficial: 0.5, mixta: 0.75, kinestesica: 1.0 }
-
-  return {
-    progressTrend: weeklyData.map((w) => w.progress),
-    accuracyTrend: weeklyData.map((w) => w.accuracy),
-    sessionFrequency: weeklyData.map((w) => w.frequency),
-    currentProgress: allProgress,
-    currentAccuracy: currentAccuracy,
-    learningVelocity: Math.min(1, learningVelocity / 5), // Normalizar a máximo 5 niveles/semana
-    consistencyScore: consistencyScore,
-    age: normalizedAge,
-    dyslexiaLevel: dyslexiaLevelMap[student.dyslexiaLevel as keyof typeof dyslexiaLevelMap] || 0.33,
-    dyslexiaType: dyslexiaTypeMap[student.dyslexiaType as keyof typeof dyslexiaTypeMap] || 0.25,
-    hasKinestheticDyslexia: student.hasKinestheticDyslexia ? 1 : 0,
-    weeksActive: weeksActive,
-    averageSessionDuration: 0.5, // Placeholder - se puede calcular con datos reales
-    motivationTrend: Math.max(-1, Math.min(1, motivationTrend)),
-  }
-}
+export { PredictionNetwork, type PredictionInput, type PredictionResult }

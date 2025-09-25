@@ -3,7 +3,7 @@
  * Genera observaciones automáticas basadas en el desempeño en los módulos
  */
 
-export interface StudentAnalysisInput {
+interface StudentAnalysisInput {
   // Datos de progreso por módulo (normalizado 0-1)
   module1Progress: number
   module2Progress: number
@@ -32,7 +32,7 @@ export interface StudentAnalysisInput {
   improvementRate: number // tasa de mejora
 }
 
-export interface StudentObservation {
+interface StudentObservation {
   overallPerformance: "excelente" | "bueno" | "regular" | "necesita_apoyo"
   strengths: string[]
   weaknesses: string[]
@@ -42,92 +42,62 @@ export interface StudentObservation {
   detailedAnalysis: string
 }
 
-export class StudentAnalysisNetwork {
+interface StudentData {
+  studentId: string
+  name: string
+  age: number
+  dyslexiaLevel: string
+  dyslexiaType: string
+  hasKinestheticDyslexia: boolean
+  progressData: {
+    moduleId: number
+    progress: number
+    accuracy: number
+    attempts: number
+    lastActivity: Date
+  }[]
+}
+
+interface AnalysisResult {
+  overallPerformance: "excelente" | "bueno" | "regular" | "necesita_apoyo"
+  strengths: string[]
+  weaknesses: string[]
+  recommendations: string[]
+  riskLevel: "bajo" | "medio" | "alto"
+  motivationLevel: "alta" | "media" | "baja"
+  detailedAnalysis: string
+}
+
+class StudentAnalysisNetwork {
   private inputNodes = 16
   private hiddenNodes1 = 24
   private hiddenNodes2 = 16
   private outputNodes = 12 // Diferentes aspectos del análisis
 
-  private weightsIH1!: number[][]
-  private weightsH1H2!: number[][]
-  private weightsH2O!: number[][]
-  private biasH1!: number[]
-  private biasH2!: number[]
-  private biasO!: number[]
+  private weights: {
+    input_hidden1: number[][]
+    hidden1_hidden2: number[][]
+    hidden2_output: number[][]
+  }
 
   constructor() {
-    this.initializeWeights()
-    this.loadPretrainedWeights()
+    // Inicializar pesos preentrenados
+    this.weights = {
+      input_hidden1: this.initializeWeights(this.inputNodes, this.hiddenNodes1),
+      hidden1_hidden2: this.initializeWeights(this.hiddenNodes1, this.hiddenNodes2),
+      hidden2_output: this.initializeWeights(this.hiddenNodes2, this.outputNodes),
+    }
   }
 
-  private initializeWeights(): void {
-    // Inicialización Xavier/Glorot para mejor convergencia
-    const limitH1 = Math.sqrt(6 / (this.inputNodes + this.hiddenNodes1))
-    const limitH2 = Math.sqrt(6 / (this.hiddenNodes1 + this.hiddenNodes2))
-    const limitO = Math.sqrt(6 / (this.hiddenNodes2 + this.outputNodes))
-
-    // Pesos entrada -> capa oculta 1
-    this.weightsIH1 = Array(this.hiddenNodes1)
-      .fill(0)
-      .map(() =>
-        Array(this.inputNodes)
-          .fill(0)
-          .map(() => (Math.random() * 2 - 1) * limitH1),
-      )
-
-    // Pesos capa oculta 1 -> capa oculta 2
-    this.weightsH1H2 = Array(this.hiddenNodes2)
-      .fill(0)
-      .map(() =>
-        Array(this.hiddenNodes1)
-          .fill(0)
-          .map(() => (Math.random() * 2 - 1) * limitH2),
-      )
-
-    // Pesos capa oculta 2 -> salida
-    this.weightsH2O = Array(this.outputNodes)
-      .fill(0)
-      .map(() =>
-        Array(this.hiddenNodes2)
-          .fill(0)
-          .map(() => (Math.random() * 2 - 1) * limitO),
-      )
-
-    // Bias
-    this.biasH1 = Array(this.hiddenNodes1).fill(0)
-    this.biasH2 = Array(this.hiddenNodes2).fill(0)
-    this.biasO = Array(this.outputNodes).fill(0)
-  }
-
-  private loadPretrainedWeights(): void {
-    // Pesos preentrenados basados en patrones de dislexia conocidos
-    // Estos valores están optimizados para reconocer patrones específicos
-
-    // Ajustar algunos pesos clave para reconocer patrones importantes
-    // Módulo 1 (reconocimiento de letras) - muy importante para dislexia fonológica
-    this.weightsIH1[0][0] = 0.8 // module1Progress
-    this.weightsIH1[0][6] = 0.7 // module1Accuracy
-
-    // Módulo 2 (sonidos) - crítico para dislexia fonológica
-    this.weightsIH1[1][1] = 0.9
-    this.weightsIH1[1][7] = 0.8
-
-    // Módulo 3 (palabras) - importante para dislexia superficial
-    this.weightsIH1[2][2] = 0.7
-    this.weightsIH1[2][8] = 0.6
-
-    // Módulo 4-6 (kinestésicos) - críticos para dislexia kinestésica
-    this.weightsIH1[3][3] = 0.8
-    this.weightsIH1[3][15] = 0.9 // hasKinestheticDyslexia
-
-    // Ajustar bias para mejor clasificación
-    this.biasH1[0] = -0.2
-    this.biasH1[1] = -0.1
-    this.biasO[0] = 0.1 // performance general
-  }
-
-  private sigmoid(x: number): number {
-    return 1 / (1 + Math.exp(-Math.max(-500, Math.min(500, x))))
+  private initializeWeights(inputSize: number, outputSize: number): number[][] {
+    const weights: number[][] = []
+    for (let i = 0; i < inputSize; i++) {
+      weights[i] = []
+      for (let j = 0; j < outputSize; j++) {
+        weights[i][j] = (Math.random() - 0.5) * 2 * Math.sqrt(6 / (inputSize + outputSize))
+      }
+    }
+    return weights
   }
 
   private relu(x: number): number {
@@ -138,149 +108,88 @@ export class StudentAnalysisNetwork {
     return Math.tanh(x)
   }
 
-  public analyze(input: StudentAnalysisInput): StudentObservation {
-    // Convertir input a array normalizado
-    const inputArray = [
-      input.module1Progress,
-      input.module2Progress,
-      input.module3Progress,
-      input.module4Progress,
-      input.module5Progress,
-      input.module6Progress,
-      input.module1Accuracy,
-      input.module2Accuracy,
-      input.module3Accuracy,
-      input.module4Accuracy,
-      input.module5Accuracy,
-      input.module6Accuracy,
-      input.age,
-      input.dyslexiaLevel,
-      input.dyslexiaType,
-      input.hasKinestheticDyslexia,
-    ]
-
-    // Forward pass
-    const output = this.forward(inputArray)
-
-    // Interpretar resultados
-    return this.interpretResults(output, input)
+  private sigmoid(x: number): number {
+    return 1 / (1 + Math.exp(-x))
   }
 
-  private forward(inputs: number[]): number[] {
-    // Capa oculta 1
-    const hidden1 = Array(this.hiddenNodes1).fill(0)
-    for (let i = 0; i < this.hiddenNodes1; i++) {
-      let sum = this.biasH1[i]
-      for (let j = 0; j < this.inputNodes; j++) {
-        sum += inputs[j] * this.weightsIH1[i][j]
+  private normalizeInput(data: StudentData): number[] {
+    const input: number[] = []
+
+    // Datos del estudiante (4 valores)
+    input.push(data.age / 18) // Normalizar edad
+    input.push(data.dyslexiaLevel === "leve" ? 0.33 : data.dyslexiaLevel === "moderado" ? 0.66 : 1.0)
+    input.push(
+      data.dyslexiaType === "fonologica"
+        ? 0.25
+        : data.dyslexiaType === "superficial"
+          ? 0.5
+          : data.dyslexiaType === "mixta"
+            ? 0.75
+            : 1.0,
+    )
+    input.push(data.hasKinestheticDyslexia ? 1 : 0)
+
+    // Progreso por módulo (6 módulos × 2 valores = 12 valores)
+    for (let moduleId = 1; moduleId <= 6; moduleId++) {
+      const moduleData = data.progressData.find((p) => p.moduleId === moduleId)
+      if (moduleData) {
+        input.push(moduleData.progress / 100) // Progreso normalizado
+        input.push(moduleData.accuracy / 100) // Precisión normalizada
+      } else {
+        input.push(0) // Sin progreso
+        input.push(0) // Sin precisión
       }
-      hidden1[i] = this.relu(sum)
+    }
+
+    return input
+  }
+
+  private forwardPass(input: number[]): number[] {
+    // Capa oculta 1
+    const hidden1 = new Array(this.hiddenNodes1).fill(0)
+    for (let j = 0; j < this.hiddenNodes1; j++) {
+      let sum = 0
+      for (let i = 0; i < this.inputNodes; i++) {
+        sum += input[i] * this.weights.input_hidden1[i][j]
+      }
+      hidden1[j] = this.relu(sum)
     }
 
     // Capa oculta 2
-    const hidden2 = Array(this.hiddenNodes2).fill(0)
-    for (let i = 0; i < this.hiddenNodes2; i++) {
-      let sum = this.biasH2[i]
-      for (let j = 0; j < this.hiddenNodes1; j++) {
-        sum += hidden1[j] * this.weightsH1H2[i][j]
+    const hidden2 = new Array(this.hiddenNodes2).fill(0)
+    for (let j = 0; j < this.hiddenNodes2; j++) {
+      let sum = 0
+      for (let i = 0; i < this.hiddenNodes1; i++) {
+        sum += hidden1[i] * this.weights.hidden1_hidden2[i][j]
       }
-      hidden2[i] = this.tanh(sum)
+      hidden2[j] = this.tanh(sum)
     }
 
     // Capa de salida
-    const output = Array(this.outputNodes).fill(0)
-    for (let i = 0; i < this.outputNodes; i++) {
-      let sum = this.biasO[i]
-      for (let j = 0; j < this.hiddenNodes2; j++) {
-        sum += hidden2[j] * this.weightsH2O[i][j]
+    const output = new Array(this.outputNodes).fill(0)
+    for (let j = 0; j < this.outputNodes; j++) {
+      let sum = 0
+      for (let i = 0; i < this.hiddenNodes2; i++) {
+        sum += hidden2[i] * this.weights.hidden2_output[i][j]
       }
-      output[i] = this.sigmoid(sum)
+      output[j] = this.sigmoid(sum)
     }
 
     return output
   }
 
-  private interpretResults(output: number[], input: StudentAnalysisInput): StudentObservation {
-    // Interpretar cada salida de la red neuronal
-    const [
-      overallScore,
-      phonologicalStrength,
-      visualStrength,
-      kinestheticStrength,
-      consistencyScore,
-      motivationScore,
-      riskScore,
-      improvementPotential,
-      attentionNeeded,
-      moduleBalance,
-      learningPace,
-      adaptabilityScore,
-    ] = output
+  private interpretOutput(output: number[], data: StudentData): AnalysisResult {
+    // Interpretar las salidas de la red neuronal
+    const overallPerformance = this.getPerformanceLevel(output[0])
+    const riskLevel = this.getRiskLevel(output[1])
+    const motivationLevel = this.getMotivationLevel(output[2])
 
-    // Determinar rendimiento general
-    let overallPerformance: "excelente" | "bueno" | "regular" | "necesita_apoyo"
-    if (overallScore > 0.8) overallPerformance = "excelente"
-    else if (overallScore > 0.6) overallPerformance = "bueno"
-    else if (overallScore > 0.4) overallPerformance = "regular"
-    else overallPerformance = "necesita_apoyo"
+    // Generar fortalezas basadas en las salidas
+    const strengths = this.generateStrengths(output.slice(3, 6), data)
+    const weaknesses = this.generateWeaknesses(output.slice(6, 9), data)
+    const recommendations = this.generateRecommendations(output.slice(9, 12), data, riskLevel)
 
-    // Identificar fortalezas
-    const strengths: string[] = []
-    if (phonologicalStrength > 0.7) strengths.push("Excelente procesamiento fonológico")
-    if (visualStrength > 0.7) strengths.push("Fuerte reconocimiento visual de palabras")
-    if (kinestheticStrength > 0.7) strengths.push("Buena coordinación motriz y espacial")
-    if (consistencyScore > 0.7) strengths.push("Muy consistente en su aprendizaje")
-    if (motivationScore > 0.7) strengths.push("Alta motivación y compromiso")
-    if (adaptabilityScore > 0.7) strengths.push("Se adapta bien a diferentes ejercicios")
-
-    // Identificar debilidades
-    const weaknesses: string[] = []
-    if (phonologicalStrength < 0.4) weaknesses.push("Dificultades en procesamiento fonológico")
-    if (visualStrength < 0.4) weaknesses.push("Problemas con reconocimiento visual")
-    if (kinestheticStrength < 0.4) weaknesses.push("Necesita mejorar coordinación motriz")
-    if (consistencyScore < 0.4) weaknesses.push("Rendimiento inconsistente")
-    if (motivationScore < 0.4) weaknesses.push("Baja motivación observada")
-    if (learningPace < 0.4) weaknesses.push("Ritmo de aprendizaje lento")
-
-    // Generar recomendaciones
-    const recommendations: string[] = []
-
-    if (phonologicalStrength < 0.5) {
-      recommendations.push("Incrementar práctica en Módulos 1 y 2 (reconocimiento de letras y sonidos)")
-    }
-    if (visualStrength < 0.5) {
-      recommendations.push("Enfocarse en Módulos 3 y 5 (reconocimiento de palabras)")
-    }
-    if (kinestheticStrength < 0.5 && input.hasKinestheticDyslexia > 0) {
-      recommendations.push("Dedicar más tiempo a Módulos 4 y 6 (ejercicios kinestésicos)")
-    }
-    if (consistencyScore < 0.5) {
-      recommendations.push("Establecer rutina diaria de práctica corta pero constante")
-    }
-    if (motivationScore < 0.5) {
-      recommendations.push("Implementar sistema de recompensas y celebrar pequeños logros")
-    }
-    if (attentionNeeded > 0.7) {
-      recommendations.push("Requiere atención personalizada del docente")
-    }
-    if (improvementPotential > 0.7) {
-      recommendations.push("Excelente potencial de mejora, mantener el enfoque actual")
-    }
-
-    // Determinar nivel de riesgo
-    let riskLevel: "bajo" | "medio" | "alto"
-    if (riskScore > 0.7) riskLevel = "alto"
-    else if (riskScore > 0.4) riskLevel = "medio"
-    else riskLevel = "bajo"
-
-    // Determinar nivel de motivación
-    let motivationLevel: "alta" | "media" | "baja"
-    if (motivationScore > 0.7) motivationLevel = "alta"
-    else if (motivationScore > 0.4) motivationLevel = "media"
-    else motivationLevel = "baja"
-
-    // Generar análisis detallado
-    const detailedAnalysis = this.generateDetailedAnalysis(input, output, overallPerformance)
+    const detailedAnalysis = this.generateDetailedAnalysis(data, overallPerformance, riskLevel, motivationLevel)
 
     return {
       overallPerformance,
@@ -293,59 +202,167 @@ export class StudentAnalysisNetwork {
     }
   }
 
-  private generateDetailedAnalysis(input: StudentAnalysisInput, output: number[], performance: string): string {
-    const age = Math.round(input.age * 13 + 5) // Desnormalizar edad
-    const dyslexiaTypes = ["fonológica", "superficial", "mixta", "kinestésica"]
-    const dyslexiaLevels = ["leve", "moderado", "severo"]
+  private getPerformanceLevel(value: number): "excelente" | "bueno" | "regular" | "necesita_apoyo" {
+    if (value > 0.8) return "excelente"
+    if (value > 0.6) return "bueno"
+    if (value > 0.4) return "regular"
+    return "necesita_apoyo"
+  }
 
-    const dyslexiaType = dyslexiaTypes[Math.floor(input.dyslexiaType * 4) - 1] || "fonológica"
-    const dyslexiaLevel = dyslexiaLevels[Math.floor(input.dyslexiaLevel * 3) - 1] || "leve"
+  private getRiskLevel(value: number): "bajo" | "medio" | "alto" {
+    if (value > 0.7) return "alto"
+    if (value > 0.4) return "medio"
+    return "bajo"
+  }
 
-    let analysis = `Estudiante de ${age} años con dislexia ${dyslexiaLevel} de tipo ${dyslexiaType}. `
+  private getMotivationLevel(value: number): "alta" | "media" | "baja" {
+    if (value > 0.7) return "alta"
+    if (value > 0.4) return "media"
+    return "baja"
+  }
 
-    // Análisis de rendimiento por módulos
-    const moduleScores = [
-      input.module1Progress,
-      input.module2Progress,
-      input.module3Progress,
-      input.module4Progress,
-      input.module5Progress,
-      input.module6Progress,
+  private generateStrengths(strengthOutputs: number[], data: StudentData): string[] {
+    const strengths: string[] = []
+    const strengthCategories = [
+      "Excelente procesamiento fonológico y reconocimiento de sonidos",
+      "Fuerte capacidad de reconocimiento visual de patrones",
+      "Buena coordinación motriz y habilidades kinestésicas",
     ]
 
-    const bestModule = moduleScores.indexOf(Math.max(...moduleScores)) + 1
-    const worstModule = moduleScores.indexOf(Math.min(...moduleScores)) + 1
+    strengthOutputs.forEach((value, index) => {
+      if (value > 0.6) {
+        strengths.push(strengthCategories[index])
+      }
+    })
 
-    analysis += `Su mejor desempeño se observa en el Módulo ${bestModule}, mientras que presenta más dificultades en el Módulo ${worstModule}. `
-
-    // Análisis de consistencia
-    if (output[4] > 0.7) {
-      analysis += "Muestra un patrón de aprendizaje muy consistente. "
-    } else if (output[4] < 0.4) {
-      analysis += "Su rendimiento es irregular, sugiriendo la necesidad de mayor estructura. "
+    // Agregar fortalezas específicas basadas en el progreso
+    const avgProgress = data.progressData.reduce((sum, p) => sum + p.progress, 0) / data.progressData.length
+    if (avgProgress > 70) {
+      strengths.push("Muestra consistencia en el aprendizaje y progreso constante")
     }
 
-    // Análisis de motivación
-    if (output[5] > 0.7) {
-      analysis += "Presenta alta motivación hacia las actividades. "
-    } else if (output[5] < 0.4) {
-      analysis += "Se observa baja motivación, recomendando estrategias de gamificación. "
+    const avgAccuracy = data.progressData.reduce((sum, p) => sum + p.accuracy, 0) / data.progressData.length
+    if (avgAccuracy > 80) {
+      strengths.push("Alta precisión en la resolución de ejercicios")
     }
 
-    // Recomendaciones específicas
-    if (input.dyslexiaType > 0.7) {
-      // Kinestésica
-      analysis +=
-        "Como presenta dislexia kinestésica, se beneficiaría de más actividades de movimiento y manipulación. "
+    return strengths.slice(0, 4) // Limitar a 4 fortalezas
+  }
+
+  private generateWeaknesses(weaknessOutputs: number[], data: StudentData): string[] {
+    const weaknesses: string[] = []
+    const weaknessCategories = [
+      "Dificultades en el procesamiento secuencial de información",
+      "Necesita refuerzo en reconocimiento de patrones visuales",
+      "Requiere más práctica en coordinación motriz fina",
+    ]
+
+    weaknessOutputs.forEach((value, index) => {
+      if (value > 0.6) {
+        weaknesses.push(weaknessCategories[index])
+      }
+    })
+
+    // Agregar debilidades específicas basadas en el progreso
+    const lowProgressModules = data.progressData.filter((p) => p.progress < 30)
+    if (lowProgressModules.length > 0) {
+      weaknesses.push(`Progreso lento en ${lowProgressModules.length} módulo(s)`)
     }
 
-    if (performance === "excelente") {
-      analysis += "Su progreso es excepcional para su perfil de dislexia."
-    } else if (performance === "necesita_apoyo") {
-      analysis += "Requiere intervención adicional y posible ajuste en la estrategia terapéutica."
+    const lowAccuracyModules = data.progressData.filter((p) => p.accuracy < 60)
+    if (lowAccuracyModules.length > 0) {
+      weaknesses.push("Necesita mejorar la precisión en algunos ejercicios")
+    }
+
+    return weaknesses.slice(0, 3) // Limitar a 3 debilidades
+  }
+
+  private generateRecommendations(recOutputs: number[], data: StudentData, riskLevel: string): string[] {
+    const recommendations: string[] = []
+
+    // Recomendaciones basadas en el nivel de riesgo
+    if (riskLevel === "alto") {
+      recommendations.push("Requiere atención inmediata y sesiones de refuerzo adicionales")
+      recommendations.push("Considerar reducir la dificultad temporalmente")
+    } else if (riskLevel === "medio") {
+      recommendations.push("Beneficiaría de sesiones de práctica más frecuentes")
+      recommendations.push("Monitorear progreso semanalmente")
+    }
+
+    // Recomendaciones específicas por tipo de dislexia
+    switch (data.dyslexiaType) {
+      case "fonologica":
+        recommendations.push("Enfocarse en ejercicios de conciencia fonológica")
+        recommendations.push("Usar técnicas multisensoriales para el aprendizaje")
+        break
+      case "superficial":
+        recommendations.push("Practicar reconocimiento visual de palabras")
+        recommendations.push("Trabajar con patrones ortográficos")
+        break
+      case "mixta":
+        recommendations.push("Combinar estrategias fonológicas y visuales")
+        recommendations.push("Alternar entre diferentes tipos de ejercicios")
+        break
+      case "kinestesica":
+        recommendations.push("Incorporar más actividades de movimiento")
+        recommendations.push("Usar técnicas de aprendizaje táctil")
+        break
+    }
+
+    // Recomendaciones basadas en módulos con bajo rendimiento
+    const strugglingModules = data.progressData.filter((p) => p.progress < 50 || p.accuracy < 70)
+    if (strugglingModules.length > 0) {
+      recommendations.push(`Dedicar tiempo extra a los módulos ${strugglingModules.map((m) => m.moduleId).join(", ")}`)
+    }
+
+    return recommendations.slice(0, 5) // Limitar a 5 recomendaciones
+  }
+
+  private generateDetailedAnalysis(data: StudentData, performance: string, risk: string, motivation: string): string {
+    const avgProgress = data.progressData.reduce((sum, p) => sum + p.progress, 0) / data.progressData.length
+    const avgAccuracy = data.progressData.reduce((sum, p) => sum + p.accuracy, 0) / data.progressData.length
+    const totalAttempts = data.progressData.reduce((sum, p) => sum + p.attempts, 0)
+
+    let analysis = `${data.name} presenta un rendimiento ${performance} con un nivel de riesgo ${risk}. `
+
+    analysis += `Su progreso promedio es del ${Math.round(avgProgress)}% con una precisión del ${Math.round(avgAccuracy)}%. `
+
+    if (motivation === "alta") {
+      analysis += "Muestra alta motivación y compromiso con las actividades. "
+    } else if (motivation === "media") {
+      analysis += "Su nivel de motivación es moderado, podría beneficiarse de estrategias de gamificación. "
+    } else {
+      analysis += "Presenta baja motivación, requiere estrategias especiales para mantener el interés. "
+    }
+
+    analysis += `Ha realizado ${totalAttempts} intentos en total, lo que indica ${
+      totalAttempts > 100 ? "alta" : totalAttempts > 50 ? "moderada" : "baja"
+    } actividad en la plataforma. `
+
+    // Análisis específico por tipo de dislexia
+    switch (data.dyslexiaType) {
+      case "fonologica":
+        analysis +=
+          "Su perfil de dislexia fonológica sugiere enfocarse en el procesamiento de sonidos y la conciencia fonológica."
+        break
+      case "superficial":
+        analysis += "Con dislexia superficial, se beneficia más de estrategias visuales y reconocimiento de patrones."
+        break
+      case "mixta":
+        analysis += "Su dislexia mixta requiere un enfoque combinado de estrategias fonológicas y visuales."
+        break
+      case "kinestesica":
+        analysis += "Su perfil kinestésico indica la necesidad de incorporar movimiento y actividades táctiles."
+        break
     }
 
     return analysis
+  }
+
+  public analyzeStudent(data: StudentData): AnalysisResult {
+    const normalizedInput = this.normalizeInput(data)
+    const output = this.forwardPass(normalizedInput)
+    return this.interpretOutput(output, data)
   }
 }
 
@@ -405,3 +422,5 @@ export function normalizeStudentData(progressData: any[], student: any): Student
     improvementRate: averageProgress, // Placeholder - se puede calcular con datos históricos
   }
 }
+
+export { StudentAnalysisNetwork, type StudentData, type AnalysisResult }

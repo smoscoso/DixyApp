@@ -1,5 +1,7 @@
 "use client"
 
+import type React from "react"
+
 import { useState, useEffect } from "react"
 import Link from "next/link"
 import { Button } from "@/components/ui/button"
@@ -21,6 +23,8 @@ export default function Modulo2Page() {
   const [isPlaying, setIsPlaying] = useState(false)
   const [attempts, setAttempts] = useState(0)
   const [userId, setUserId] = useState<string | null>(null)
+  const [draggedLetter, setDraggedLetter] = useState<string | null>(null)
+  const [draggedIndex, setDraggedIndex] = useState<number | null>(null)
   const router = useRouter()
 
   // Verificar usuario
@@ -88,7 +92,7 @@ export default function Modulo2Page() {
 
       const allLetters = [...wordLetters, ...extraLetters].sort(() => 0.5 - Math.random())
       setAvailableLetters(allLetters)
-      setSelectedLetters([])
+      setSelectedLetters(new Array(wordData.word.length).fill(""))
       setMessage("")
       setShowSuccess(false)
       setAttempts(0)
@@ -109,17 +113,56 @@ export default function Modulo2Page() {
     }, 2000)
   }
 
-  const selectLetter = (letter: string, index: number) => {
-    if (selectedLetters.length < targetWord.length) {
-      setSelectedLetters([...selectedLetters, letter])
-      setAvailableLetters(availableLetters.filter((_, i) => i !== index))
+  // Funciones de drag and drop
+  const handleDragStart = (e: React.DragEvent, letter: string, index: number) => {
+    setDraggedLetter(letter)
+    setDraggedIndex(index)
+    e.dataTransfer.effectAllowed = "move"
+  }
+
+  const handleDragOver = (e: React.DragEvent) => {
+    e.preventDefault()
+    e.dataTransfer.dropEffect = "move"
+  }
+
+  const handleDrop = (e: React.DragEvent, targetIndex: number) => {
+    e.preventDefault()
+
+    if (draggedLetter && draggedIndex !== null) {
+      // Si la posición ya está ocupada, no hacer nada
+      if (selectedLetters[targetIndex] !== "") {
+        return
+      }
+
+      // Colocar la letra en la posición correcta
+      const newSelectedLetters = [...selectedLetters]
+      newSelectedLetters[targetIndex] = draggedLetter
+
+      // Remover la letra de las disponibles
+      const newAvailableLetters = availableLetters.filter((_, index) => index !== draggedIndex)
+
+      setSelectedLetters(newSelectedLetters)
+      setAvailableLetters(newAvailableLetters)
     }
+
+    setDraggedLetter(null)
+    setDraggedIndex(null)
+  }
+
+  const handleDragEnd = (e: React.DragEvent) => {
+    // Si el drag no fue exitoso, resetear el estado
+    setDraggedLetter(null)
+    setDraggedIndex(null)
   }
 
   const removeLetter = (index: number) => {
     const letter = selectedLetters[index]
-    setSelectedLetters(selectedLetters.filter((_, i) => i !== index))
-    setAvailableLetters([...availableLetters, letter])
+    if (letter) {
+      const newSelectedLetters = [...selectedLetters]
+      newSelectedLetters[index] = ""
+      setSelectedLetters(newSelectedLetters)
+      setAvailableLetters([...availableLetters, letter])
+    }
   }
 
   const resetLetters = () => {
@@ -134,7 +177,7 @@ export default function Modulo2Page() {
 
       const allLetters = [...wordLetters, ...extraLetters].sort(() => 0.5 - Math.random())
       setAvailableLetters(allLetters)
-      setSelectedLetters([])
+      setSelectedLetters(new Array(wordData.word.length).fill(""))
     }
   }
 
@@ -249,13 +292,8 @@ export default function Modulo2Page() {
                     alt={`Imagen de ${targetWord}`}
                     className="w-48 h-48 object-cover rounded-xl border-2 border-blue-300 bg-gray-100"
                     onError={(e) => {
-                      // Si la imagen falla al cargar, usar una imagen de respaldo
                       const target = e.target as HTMLImageElement
                       target.src = `/placeholder.svg?height=200&width=200&text=${encodeURIComponent(targetWord)}`
-                      console.log(`Error cargando imagen: ${targetImage}, usando respaldo`)
-                    }}
-                    onLoad={() => {
-                      console.log(`Imagen cargada exitosamente: ${targetImage}`)
                     }}
                   />
                 </div>
@@ -277,23 +315,28 @@ export default function Modulo2Page() {
           <Card className="rounded-3xl overflow-hidden border-4 border-blue-400 shadow-xl">
             <CardContent className="p-8">
               <h2 className="text-3xl font-bold text-center mb-8 text-blue-600">
-                ¡Escucha la palabra y forma las letras!
+                ¡Arrastra las letras para formar la palabra!
               </h2>
 
               {/* Área para formar la palabra */}
               <div className="mb-8">
                 <h3 className="text-xl font-bold text-center mb-4 text-blue-600">Forma la palabra aquí:</h3>
                 <div className="flex justify-center gap-2 mb-4 min-h-[80px] items-center">
-                  {Array.from({ length: targetWord.length }).map((_, index) => (
+                  {selectedLetters.map((letter, index) => (
                     <div
                       key={index}
-                      className="w-16 h-16 border-4 border-blue-300 rounded-xl bg-white flex items-center justify-center text-2xl font-bold cursor-pointer hover:bg-blue-50"
-                      onClick={() => selectedLetters[index] && removeLetter(index)}
+                      className="w-16 h-16 border-4 border-blue-300 rounded-xl bg-white flex items-center justify-center text-2xl font-bold cursor-pointer hover:bg-blue-50 transition-colors"
+                      onDragOver={handleDragOver}
+                      onDrop={(e) => handleDrop(e, index)}
+                      onClick={() => letter && removeLetter(index)}
                     >
-                      {selectedLetters[index] || ""}
+                      {letter || <div className="text-blue-300 text-sm">{index + 1}</div>}
                     </div>
                   ))}
                 </div>
+                <p className="text-center text-sm text-blue-600 mb-4">
+                  💡 Arrastra las letras aquí o haz clic en una letra colocada para quitarla
+                </p>
               </div>
 
               {/* Letras disponibles */}
@@ -301,16 +344,20 @@ export default function Modulo2Page() {
                 <h3 className="text-xl font-bold text-center mb-4 text-blue-600">Letras disponibles:</h3>
                 <div className="flex flex-wrap justify-center gap-3">
                   {availableLetters.map((letter, index) => (
-                    <Button
+                    <div
                       key={index}
-                      onClick={() => selectLetter(letter, index)}
-                      className="w-14 h-14 text-xl font-bold bg-white text-blue-600 hover:bg-blue-100 border-2 border-blue-300 rounded-xl shadow-md transform transition-all duration-200 hover:scale-110"
-                      variant="outline"
+                      draggable
+                      onDragStart={(e) => handleDragStart(e, letter, index)}
+                      onDragEnd={handleDragEnd}
+                      className="w-14 h-14 text-xl font-bold bg-white text-blue-600 hover:bg-blue-100 border-2 border-blue-300 rounded-xl shadow-md transform transition-all duration-200 hover:scale-110 cursor-grab active:cursor-grabbing flex items-center justify-center"
                     >
                       {letter}
-                    </Button>
+                    </div>
                   ))}
                 </div>
+                <p className="text-center text-sm text-blue-600 mt-2">
+                  🖱️ Arrastra las letras hacia arriba para formar la palabra
+                </p>
               </div>
 
               {/* Botones de acción */}
@@ -325,8 +372,8 @@ export default function Modulo2Page() {
                 </Button>
                 <Button
                   onClick={checkWord}
-                  disabled={selectedLetters.length !== targetWord.length}
-                  className="bg-gradient-to-r from-blue-500 to-cyan-600 hover:from-blue-600 hover:to-cyan-700 rounded-xl px-8 py-3 text-lg shadow-lg"
+                  disabled={selectedLetters.some((letter) => letter === "")}
+                  className="bg-gradient-to-r from-blue-500 to-cyan-600 hover:from-blue-600 hover:to-cyan-700 rounded-xl px-8 py-3 text-lg shadow-lg disabled:opacity-50 disabled:cursor-not-allowed"
                 >
                   ¡Comprobar!
                 </Button>

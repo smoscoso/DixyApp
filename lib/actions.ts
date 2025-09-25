@@ -6,7 +6,7 @@ import { revalidatePath } from "next/cache"
 export async function createUser(name: string, age: number): Promise<string> {
   // Esta función es para compatibilidad con código legacy
   // En el nuevo sistema, los estudiantes se crean desde el dashboard del docente
-  throw new Error("Esta función ya no se usa. Los estudiantes se crean desde el dashboard del docente.")
+  throw new Error("Esta función ya no se usa. Los estudiantes se crean desde el panel de control del docente.")
 }
 
 export async function saveProgress(userId: string, module: number, level: number, success: boolean): Promise<void> {

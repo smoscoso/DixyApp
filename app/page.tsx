@@ -198,7 +198,7 @@ export default function HomePage() {
                   </li>
                   <li className="flex items-start">
                     <span className="text-blue-600 mr-3 mt-1">✓</span>
-                    <span>Dashboard administrativo completo</span>
+                    <span>Panel de Control administrativo completo</span>
                   </li>
                 </ul>
                 <Link href="/auth/register">

@@ -146,7 +146,7 @@ export async function createTeacher(name: string, email: string, password: strin
 export async function createUser(name: string, age: number): Promise<User> {
   // Esta función ya no se usa en el nuevo sistema
   // Los estudiantes se crean desde el dashboard del docente
-  throw new Error("Esta función ya no se usa. Los estudiantes se crean desde el dashboard del docente.")
+  throw new Error("Esta función ya no se usa. Los estudiantes se crean desde el panel de control del docente.")
 }
 
 export async function createStudent(

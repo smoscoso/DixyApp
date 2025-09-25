@@ -32,6 +32,8 @@ export default function Modulo4Page() {
   const [hasFinishedDrawing, setHasFinishedDrawing] = useState<boolean>(false)
   const [selectedLetters, setSelectedLetters] = useState<string[]>([])
   const [completedLevels, setCompletedLevels] = useState<number>(0)
+  const [drawingAccuracy, setDrawingAccuracy] = useState<number>(0)
+  const [mousePressed, setMousePressed] = useState<boolean>(false)
   const canvasRef = useRef<HTMLCanvasElement>(null)
   const router = useRouter()
 
@@ -853,6 +855,45 @@ export default function Modulo4Page() {
     }
   }, [])
 
+  // Calcular la distancia entre dos puntos
+  const calculateDistance = (p1: Point, p2: Point): number => {
+    return Math.sqrt(Math.pow(p2.x - p1.x, 2) + Math.pow(p2.y - p1.y, 2))
+  }
+
+  // Verificar si el usuario está siguiendo la plantilla
+  const calculateAccuracy = useCallback((userPath: Point[], template: Point[]): number => {
+    if (userPath.length === 0 || template.length === 0) return 0
+
+    let totalDistance = 0
+    let validPoints = 0
+    const maxAllowedDistance = 30 // Margen de error permitido en píxeles (aumentado para 60%)
+
+    for (const userPoint of userPath) {
+      let minDistance = Number.POSITIVE_INFINITY
+
+      // Encontrar el punto más cercano en la plantilla
+      for (const templatePoint of template) {
+        const distance = calculateDistance(userPoint, templatePoint)
+        if (distance < minDistance) {
+          minDistance = distance
+        }
+      }
+
+      if (minDistance <= maxAllowedDistance) {
+        totalDistance += minDistance
+        validPoints++
+      }
+    }
+
+    if (validPoints === 0) return 0
+
+    // Calcular precisión como porcentaje
+    const averageDistance = totalDistance / validPoints
+    const accuracy = Math.max(0, 100 - (averageDistance / maxAllowedDistance) * 100)
+
+    return accuracy
+  }, [])
+
   // Dibujar plantilla con líneas entrecortadas
   const drawTemplate = useCallback(() => {
     const canvas = canvasRef.current
@@ -893,7 +934,7 @@ export default function Modulo4Page() {
     ctx.fillStyle = "#FFFFFF"
     ctx.font = "bold 12px Arial"
     ctx.textAlign = "center"
-    ctx.fillText("", template[0].x, template[0].y + 4)
+    ctx.fillText("INICIO", template[0].x, template[0].y + 4)
 
     // Punto final
     if (template.length > 1) {
@@ -903,7 +944,7 @@ export default function Modulo4Page() {
       ctx.fill()
 
       ctx.fillStyle = "#FFFFFF"
-      ctx.fillText("", template[template.length - 1].x, template[template.length - 1].y + 4)
+      ctx.fillText("FIN", template[template.length - 1].x, template[template.length - 1].y + 4)
     }
   }, [currentLetter, getLetterTemplate])
 
@@ -954,13 +995,14 @@ export default function Modulo4Page() {
     const y = e.clientY - rect.top
 
     setIsDrawing(true)
+    setMousePressed(true)
     setUserPath([{ x, y }])
-    setMessage("¡Sigue la línea entrecortada para dibujar la letra!")
+    setMessage("¡Mantén presionado el botón del mouse y sigue la línea entrecortada!")
   }, [])
 
   const handleMouseMove = useCallback(
     (e: React.MouseEvent<HTMLCanvasElement>) => {
-      if (!isDrawing) return
+      if (!isDrawing || !mousePressed) return
 
       const canvas = canvasRef.current
       if (!canvas) return
@@ -971,26 +1013,50 @@ export default function Modulo4Page() {
 
       setUserPath((prev) => [...prev, { x, y }])
     },
-    [isDrawing],
+    [isDrawing, mousePressed],
   )
 
   const handleMouseUp = useCallback(() => {
     if (!isDrawing) return
 
     setIsDrawing(false)
-    setHasFinishedDrawing(true)
-    setMessage("¡Buen trabajo! Haz clic en 'Verificar' para comprobar tu dibujo.")
-  }, [isDrawing])
+    setMousePressed(false)
 
-  // Verificar si el dibujo es correcto (simplificado)
+    // Calcular precisión del trazado
+    const template = getLetterTemplate(currentLetter)
+    const accuracy = calculateAccuracy(userPath, template)
+    setDrawingAccuracy(accuracy)
+
+    if (accuracy >= 60) {
+      // Cambiado de 90% a 60%
+      setHasFinishedDrawing(true)
+      setMessage(`¡Excelente trazado! Precisión: ${Math.round(accuracy)}%. Haz clic en 'Verificar'.`)
+    } else if (accuracy >= 40) {
+      setHasFinishedDrawing(true)
+      setMessage(`¡Buen intento! Precisión: ${Math.round(accuracy)}%. Puedes mejorar siguiendo más de cerca la línea.`)
+    } else {
+      setMessage(
+        `Precisión: ${Math.round(accuracy)}%. Intenta seguir más de cerca la línea entrecortada. ¡No sueltes el botón del mouse!`,
+      )
+      setHasFinishedDrawing(false)
+    }
+  }, [isDrawing, userPath, currentLetter, getLetterTemplate, calculateAccuracy])
+
+  // Verificar si el dibujo es correcto
   const verifyDrawing = useCallback(async () => {
     if (!userId || userPath.length < 10) {
       setMessage("¡Intenta dibujar más de la letra!")
       return
     }
 
-    // Simulación de verificación (en una implementación real, aquí iría un algoritmo más sofisticado)
-    const isCorrect = userPath.length > 20 // Criterio simple: debe haber suficientes puntos
+    // Verificar que el usuario no haya soltado el mouse durante el trazado
+    if (drawingAccuracy < 60) {
+      // Cambiado de 90% a 60%
+      setMessage("¡Necesitas mayor precisión! Sigue más de cerca la línea entrecortada sin soltar el botón del mouse.")
+      return
+    }
+
+    const isCorrect = drawingAccuracy >= 60 // Cambiado de 90% a 60%
 
     try {
       await saveProgress(userId, 4, currentLevel, isCorrect)
@@ -999,7 +1065,9 @@ export default function Modulo4Page() {
     }
 
     if (isCorrect) {
-      setMessage(`¡Excelente! Has dibujado la letra ${currentLetter} correctamente! 🎉`)
+      setMessage(
+        `¡Excelente! Has dibujado la letra ${currentLetter} correctamente con ${Math.round(drawingAccuracy)}% de precisión! 🎉`,
+      )
       setShowSuccess(true)
       setCompletedLevels((prev) => prev + 1)
 
@@ -1009,16 +1077,18 @@ export default function Modulo4Page() {
         origin: { y: 0.6 },
       })
     } else {
-      setMessage("¡Buen intento! Trata de seguir más de cerca la línea entrecortada.")
+      setMessage("¡Buen intento! Trata de seguir más de cerca la línea entrecortada sin soltar el botón del mouse.")
     }
-  }, [userId, userPath, currentLevel, currentLetter])
+  }, [userId, userPath, currentLevel, currentLetter, drawingAccuracy])
 
   const resetDrawing = useCallback(() => {
     setUserPath([])
-    setMessage("Haz clic y arrastra el mouse para dibujar la letra siguiendo la guía")
+    setMessage("Haz clic y mantén presionado el botón del mouse para dibujar la letra siguiendo la guía")
     setShowSuccess(false)
     setHasFinishedDrawing(false)
     setIsDrawing(false)
+    setMousePressed(false)
+    setDrawingAccuracy(0)
   }, [])
 
   const goToNextLevel = useCallback(() => {
@@ -1046,7 +1116,7 @@ export default function Modulo4Page() {
   const progressPercentage = (currentLevel / 10) * 100
 
   return (
-    <div className="min-h-screen bg-gradient-to-b from-purple-200 to-pink-200 py-8">
+    <div className="min-h-screen bg-gradient-to-b from-blue-200 to-cyan-200 py-8">
       <div className="container mx-auto px-4">
         <div className="flex justify-between items-center mb-8">
           <Link href="/modules">
@@ -1055,9 +1125,9 @@ export default function Modulo4Page() {
               <span className="text-lg">Volver a los módulos</span>
             </Button>
           </Link>
-          <div className="text-center bg-white p-4 rounded-2xl shadow-lg border-4 border-purple-400">
-            <h1 className="text-3xl font-bold text-purple-600">Módulo 4: ¡Dibuja las Letras!</h1>
-            <p className="text-xl text-pink-500">
+          <div className="text-center bg-white p-4 rounded-2xl shadow-lg border-4 border-blue-400">
+            <h1 className="text-3xl font-bold text-blue-600">Módulo 4: ¡Dibuja las Letras!</h1>
+            <p className="text-xl text-cyan-500">
               Letra {currentLetter} - Nivel {currentLevel} de 10
             </p>
           </div>
@@ -1067,7 +1137,7 @@ export default function Modulo4Page() {
         <div className="relative mb-8">
           <Progress value={progressPercentage} className="h-6 rounded-full bg-gray-200" />
           <div className="absolute top-0 left-0 w-full h-full flex justify-center items-center">
-            <span className="text-sm font-bold text-white bg-purple-500 px-3 py-1 rounded-full">
+            <span className="text-sm font-bold text-white bg-blue-500 px-3 py-1 rounded-full">
               {Math.round(progressPercentage)}%
             </span>
           </div>
@@ -1075,10 +1145,10 @@ export default function Modulo4Page() {
 
         <div className="grid grid-cols-1 lg:grid-cols-2 gap-8 max-w-6xl mx-auto">
           {/* Área de dibujo */}
-          <Card className="rounded-3xl overflow-hidden border-4 border-purple-400 shadow-xl">
+          <Card className="rounded-3xl overflow-hidden border-4 border-blue-400 shadow-xl">
             <CardContent className="p-8">
-              <h2 className="text-3xl font-bold text-center mb-6 text-purple-600">
-                ¡Dibuja la letra: <span className="text-6xl text-pink-600 animate-pulse">{currentLetter}</span>!
+              <h2 className="text-3xl font-bold text-center mb-6 text-blue-600">
+                ¡Dibuja la letra: <span className="text-6xl text-cyan-600 animate-pulse">{currentLetter}</span>!
               </h2>
 
               <div className="mb-6">
@@ -1086,7 +1156,7 @@ export default function Modulo4Page() {
                   ref={canvasRef}
                   width={400}
                   height={300}
-                  className="border-4 border-purple-300 rounded-xl bg-white cursor-crosshair w-full max-w-md mx-auto block"
+                  className="border-4 border-blue-300 rounded-xl bg-white cursor-crosshair w-full max-w-md mx-auto block"
                   onMouseDown={handleMouseDown}
                   onMouseMove={handleMouseMove}
                   onMouseUp={handleMouseUp}
@@ -1094,11 +1164,27 @@ export default function Modulo4Page() {
                 />
               </div>
 
+              {drawingAccuracy > 0 && (
+                <div className="text-center mb-4">
+                  <div
+                    className={`inline-block px-4 py-2 rounded-full text-sm font-bold ${
+                      drawingAccuracy >= 60
+                        ? "bg-green-100 text-green-800"
+                        : drawingAccuracy >= 40
+                          ? "bg-yellow-100 text-yellow-800"
+                          : "bg-red-100 text-red-800"
+                    }`}
+                  >
+                    Precisión: {Math.round(drawingAccuracy)}%
+                  </div>
+                </div>
+              )}
+
               <div className="flex justify-center gap-4">
                 <Button
                   onClick={resetDrawing}
                   variant="outline"
-                  className="bg-white text-purple-600 border-2 border-purple-300 rounded-xl px-6 py-3 flex items-center gap-2"
+                  className="bg-white text-blue-600 border-2 border-blue-300 rounded-xl px-6 py-3 flex items-center gap-2"
                 >
                   <RotateCcw className="h-5 w-5" />
                   Borrar
@@ -1106,9 +1192,9 @@ export default function Modulo4Page() {
 
                 <Button
                   onClick={verifyDrawing}
-                  disabled={!hasFinishedDrawing}
+                  disabled={!hasFinishedDrawing || drawingAccuracy < 60} // Cambiado de 90% a 60%
                   className={`rounded-xl px-8 py-3 text-lg shadow-lg flex items-center gap-2 ${
-                    hasFinishedDrawing
+                    hasFinishedDrawing && drawingAccuracy >= 60 // Cambiado de 90% a 60%
                       ? "bg-gradient-to-r from-green-500 to-teal-600 hover:from-green-600 hover:to-teal-700"
                       : "bg-gray-400 cursor-not-allowed"
                   }`}
@@ -1121,9 +1207,9 @@ export default function Modulo4Page() {
           </Card>
 
           {/* Instrucciones */}
-          <Card className="rounded-3xl overflow-hidden border-4 border-purple-400 shadow-xl">
+          <Card className="rounded-3xl overflow-hidden border-4 border-blue-400 shadow-xl">
             <CardContent className="p-8">
-              <h2 className="text-2xl font-bold text-center mb-6 text-purple-600">¡Instrucciones!</h2>
+              <h2 className="text-2xl font-bold text-center mb-6 text-blue-600">¡Instrucciones!</h2>
 
               <div className="space-y-4 mb-6">
                 <div className="flex items-center gap-3 bg-white p-4 rounded-xl shadow-md">
@@ -1150,28 +1236,41 @@ export default function Modulo4Page() {
 
               <ul className="space-y-3 mb-6">
                 <li className="flex items-start gap-2 bg-white p-3 rounded-lg shadow">
-                  <span className="text-purple-500 text-xl mt-1">1️⃣</span>
+                  <span className="text-blue-500 text-xl mt-1">1️⃣</span>
                   <span className="text-lg">Haz clic en el punto verde para empezar</span>
                 </li>
                 <li className="flex items-start gap-2 bg-white p-3 rounded-lg shadow">
-                  <span className="text-purple-500 text-xl mt-1">2️⃣</span>
-                  <span className="text-lg">Arrastra el mouse siguiendo la línea gris</span>
+                  <span className="text-blue-500 text-xl mt-1">2️⃣</span>
+                  <span className="text-lg font-bold text-red-600">
+                    ¡IMPORTANTE! Mantén presionado el botón del mouse
+                  </span>
                 </li>
                 <li className="flex items-start gap-2 bg-white p-3 rounded-lg shadow">
-                  <span className="text-purple-500 text-xl mt-1">3️⃣</span>
+                  <span className="text-blue-500 text-xl mt-1">3️⃣</span>
+                  <span className="text-lg">Sigue la línea gris sin soltar el botón</span>
+                </li>
+                <li className="flex items-start gap-2 bg-white p-3 rounded-lg shadow">
+                  <span className="text-blue-500 text-xl mt-1">4️⃣</span>
                   <span className="text-lg">Termina en el punto rojo</span>
                 </li>
                 <li className="flex items-start gap-2 bg-white p-3 rounded-lg shadow">
-                  <span className="text-purple-500 text-xl mt-1">4️⃣</span>
-                  <span className="text-lg">¡Haz clic en "Verificar" al terminar!</span>
+                  <span className="text-blue-500 text-xl mt-1">5️⃣</span>
+                  <span className="text-lg">¡Necesitas 60% de precisión para avanzar!</span>
                 </li>
               </ul>
 
-              <div className="bg-purple-100 p-4 rounded-xl border-2 border-purple-300 mb-4">
-                <p className="text-center text-purple-800 font-semibold">Letras completadas: {completedLevels} de 10</p>
-                <div className="w-full bg-purple-200 rounded-full h-3 mt-2">
+              <div className="bg-red-100 p-4 rounded-xl border-2 border-red-300 mb-4">
+                <p className="text-center text-red-800 font-bold text-lg">⚠️ ¡NO SUELTES EL BOTÓN DEL MOUSE!</p>
+                <p className="text-center text-red-700 text-sm mt-2">
+                  Si sueltas el botón antes de terminar, tendrás que empezar de nuevo
+                </p>
+              </div>
+
+              <div className="bg-blue-100 p-4 rounded-xl border-2 border-blue-300 mb-4">
+                <p className="text-center text-blue-800 font-semibold">Letras completadas: {completedLevels} de 10</p>
+                <div className="w-full bg-blue-200 rounded-full h-3 mt-2">
                   <div
-                    className="bg-purple-500 h-3 rounded-full transition-all duration-300"
+                    className="bg-blue-500 h-3 rounded-full transition-all duration-300"
                     style={{ width: `${(completedLevels / 10) * 100}%` }}
                   ></div>
                 </div>
@@ -1179,8 +1278,8 @@ export default function Modulo4Page() {
 
               {/* Mostrar letras seleccionadas */}
               {selectedLetters.length > 0 && (
-                <div className="bg-pink-100 p-4 rounded-xl border-2 border-pink-300 mb-4">
-                  <p className="text-center text-pink-800 font-semibold mb-2">Letras de este nivel:</p>
+                <div className="bg-cyan-100 p-4 rounded-xl border-2 border-cyan-300 mb-4">
+                  <p className="text-center text-cyan-800 font-semibold mb-2">Letras de este nivel:</p>
                   <div className="flex flex-wrap justify-center gap-2">
                     {selectedLetters.map((letter, index) => (
                       <span
@@ -1189,7 +1288,7 @@ export default function Modulo4Page() {
                           index < currentLevel - 1
                             ? "bg-green-500 text-white"
                             : index === currentLevel - 1
-                              ? "bg-purple-500 text-white animate-pulse"
+                              ? "bg-blue-500 text-white animate-pulse"
                               : "bg-gray-300 text-gray-600"
                         }`}
                       >
@@ -1207,7 +1306,9 @@ export default function Modulo4Page() {
                       ? "bg-green-100 text-green-800 border-4 border-green-400"
                       : hasFinishedDrawing
                         ? "bg-blue-100 text-blue-800 border-4 border-blue-400"
-                        : "bg-yellow-100 text-yellow-800 border-4 border-yellow-400"
+                        : drawingAccuracy > 0 && drawingAccuracy < 40
+                          ? "bg-red-100 text-red-800 border-4 border-red-400"
+                          : "bg-yellow-100 text-yellow-800 border-4 border-yellow-400"
                   }`}
                 >
                   {message}
@@ -1215,7 +1316,7 @@ export default function Modulo4Page() {
                   {showSuccess && currentLevel < 10 && (
                     <Button
                       onClick={goToNextLevel}
-                      className="mt-6 bg-gradient-to-r from-purple-500 to-pink-600 hover:from-purple-600 hover:to-pink-700 w-full rounded-full py-4 text-xl shadow-lg"
+                      className="mt-6 bg-gradient-to-r from-blue-500 to-cyan-600 hover:from-blue-600 hover:to-cyan-700 w-full rounded-full py-4 text-xl shadow-lg"
                     >
                       ¡Siguiente letra! 🚀
                     </Button>

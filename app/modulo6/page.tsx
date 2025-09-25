@@ -5,7 +5,7 @@ import Link from "next/link"
 import { Button } from "@/components/ui/button"
 import { Card, CardContent } from "@/components/ui/card"
 import { Progress } from "@/components/ui/progress"
-import { ArrowLeft, Grid3X3, RotateCcw } from "lucide-react"
+import { ArrowLeft, Grid3X3, RotateCcw, Play } from "lucide-react"
 import confetti from "canvas-confetti"
 import { useRouter } from "next/navigation"
 import { saveProgress } from "@/lib/actions"
@@ -20,12 +20,13 @@ export default function Modulo6Page() {
   const [currentLevel, setCurrentLevel] = useState(1)
   const [pattern, setPattern] = useState<PatternCell[][]>([])
   const [userPattern, setUserPattern] = useState<PatternCell[][]>([])
-  const [showPattern, setShowPattern] = useState(true)
+  const [showPattern, setShowPattern] = useState(false)
   const [message, setMessage] = useState("")
   const [showSuccess, setShowSuccess] = useState(false)
   const [attempts, setAttempts] = useState(0)
   const [userId, setUserId] = useState<string | null>(null)
   const [studyTime, setStudyTime] = useState(5)
+  const [gameStarted, setGameStarted] = useState(false)
   const router = useRouter()
 
   // Verificar usuario
@@ -44,21 +45,22 @@ export default function Modulo6Page() {
     setMessage("")
     setShowSuccess(false)
     setAttempts(0)
-    setShowPattern(true)
+    setShowPattern(false)
+    setGameStarted(false)
     setStudyTime(Math.max(3, 8 - currentLevel)) // Menos tiempo conforme avanza
   }, [currentLevel])
 
   // Timer para ocultar el patrón
   useEffect(() => {
-    if (showPattern && studyTime > 0) {
+    if (showPattern && studyTime > 0 && gameStarted) {
       const timer = setTimeout(() => {
         setStudyTime(studyTime - 1)
       }, 1000)
       return () => clearTimeout(timer)
-    } else if (studyTime === 0) {
+    } else if (studyTime === 0 && gameStarted) {
       setShowPattern(false)
     }
-  }, [showPattern, studyTime])
+  }, [showPattern, studyTime, gameStarted])
 
   const generatePatternForLevel = (level: number) => {
     const gridSize = Math.min(3 + Math.floor(level / 3), 6) // Aumenta el tamaño gradualmente
@@ -170,8 +172,15 @@ export default function Modulo6Page() {
     }
   }
 
+  const startGame = () => {
+    setGameStarted(true)
+    setShowPattern(true)
+    setStudyTime(Math.max(3, 8 - currentLevel))
+    setMessage("¡Memoriza el patrón!")
+  }
+
   const toggleUserCell = (rowIndex: number, colIndex: number) => {
-    if (showPattern) return
+    if (showPattern || !gameStarted) return
 
     const newUserPattern = [...userPattern]
     newUserPattern[rowIndex][colIndex].isUserFilled = !newUserPattern[rowIndex][colIndex].isUserFilled
@@ -293,45 +302,81 @@ export default function Modulo6Page() {
             <CardContent className="p-8">
               <h2 className="text-2xl font-bold text-center mb-6 text-indigo-600 flex items-center justify-center gap-2">
                 <Grid3X3 className="h-8 w-8" />
-                {showPattern ? "¡Memoriza este patrón!" : "¡Recrea el patrón!"}
+                {!gameStarted ? "¡Presiona Iniciar!" : showPattern ? "¡Memoriza este patrón!" : "¡Recrea el patrón!"}
               </h2>
 
-              {showPattern && (
+              {!gameStarted && (
+                <div className="text-center mb-6">
+                  <Button
+                    onClick={startGame}
+                    className="bg-gradient-to-r from-green-500 to-teal-600 hover:from-green-600 hover:to-teal-700 rounded-full px-8 py-4 text-xl shadow-lg flex items-center gap-2 mx-auto"
+                  >
+                    <Play className="h-6 w-6" />
+                    ¡Iniciar Juego!
+                  </Button>
+                  <p className="text-gray-600 mt-4">Haz clic para comenzar el desafío de memoria</p>
+                </div>
+              )}
+
+              {gameStarted && showPattern && (
                 <div className="text-center mb-4">
                   <div className="text-4xl font-bold text-red-600">{studyTime}</div>
                   <p className="text-lg text-gray-600">segundos restantes</p>
                 </div>
               )}
 
-              <div className="flex justify-center mb-6">
-                <div
-                  className="grid gap-2 p-4 bg-white rounded-xl border-2 border-indigo-300"
-                  style={{
-                    gridTemplateColumns: `repeat(${pattern.length}, 1fr)`,
-                    maxWidth: "300px",
-                  }}
-                >
-                  {(showPattern ? pattern : userPattern).map((row, rowIndex) =>
-                    row.map((cell, colIndex) => (
-                      <div
-                        key={`${rowIndex}-${colIndex}`}
-                        onClick={() => !showPattern && toggleUserCell(rowIndex, colIndex)}
-                        className={`w-10 h-10 border-2 rounded-md cursor-pointer transition-all duration-200 ${
-                          showPattern
-                            ? cell.filled
-                              ? "bg-indigo-500 border-indigo-600"
-                              : "bg-gray-100 border-gray-300"
-                            : cell.isUserFilled
-                              ? "bg-blue-500 border-blue-600 hover:bg-blue-600"
-                              : "bg-gray-100 border-gray-300 hover:bg-gray-200"
-                        }`}
-                      />
-                    )),
-                  )}
+              {gameStarted && (
+                <div className="flex justify-center mb-6">
+                  <div
+                    className="grid gap-2 p-4 bg-white rounded-xl border-2 border-indigo-300"
+                    style={{
+                      gridTemplateColumns: `repeat(${pattern.length}, 1fr)`,
+                      maxWidth: "300px",
+                    }}
+                  >
+                    {(showPattern ? pattern : userPattern).map((row, rowIndex) =>
+                      row.map((cell, colIndex) => (
+                        <div
+                          key={`${rowIndex}-${colIndex}`}
+                          onClick={() => !showPattern && toggleUserCell(rowIndex, colIndex)}
+                          className={`w-10 h-10 border-2 rounded-md cursor-pointer transition-all duration-200 ${
+                            showPattern
+                              ? cell.filled
+                                ? "bg-indigo-500 border-indigo-600"
+                                : "bg-gray-100 border-gray-300"
+                              : cell.isUserFilled
+                                ? "bg-blue-500 border-blue-600 hover:bg-blue-600"
+                                : "bg-gray-100 border-gray-300 hover:bg-gray-200"
+                          }`}
+                        />
+                      )),
+                    )}
+                  </div>
                 </div>
-              </div>
+              )}
 
-              {!showPattern && (
+              {!gameStarted && (
+                <div className="flex justify-center mb-6">
+                  <div
+                    className="grid gap-2 p-4 bg-white rounded-xl border-2 border-indigo-300"
+                    style={{
+                      gridTemplateColumns: `repeat(${Math.max(3, pattern.length)}, 1fr)`,
+                      maxWidth: "300px",
+                    }}
+                  >
+                    {Array.from({ length: Math.max(3, pattern.length) }).map((_, rowIndex) =>
+                      Array.from({ length: Math.max(3, pattern.length) }).map((_, colIndex) => (
+                        <div
+                          key={`${rowIndex}-${colIndex}`}
+                          className="w-10 h-10 border-2 rounded-md bg-gray-100 border-gray-300"
+                        />
+                      )),
+                    )}
+                  </div>
+                </div>
+              )}
+
+              {gameStarted && !showPattern && (
                 <div className="flex justify-center gap-4">
                   <Button
                     onClick={resetUserPattern}
@@ -366,19 +411,23 @@ export default function Modulo6Page() {
 
               <ul className="space-y-3 mb-6">
                 <li className="flex items-start gap-2 bg-white p-3 rounded-lg shadow">
-                  <span className="text-green-500 text-xl mt-1">✓</span>
-                  <span className="text-lg">Observa el patrón durante unos segundos</span>
+                  <span className="text-green-500 text-xl mt-1">1️⃣</span>
+                  <span className="text-lg">Haz clic en "¡Iniciar Juego!" para comenzar</span>
                 </li>
                 <li className="flex items-start gap-2 bg-white p-3 rounded-lg shadow">
-                  <span className="text-green-500 text-xl mt-1">✓</span>
+                  <span className="text-green-500 text-xl mt-1">2️⃣</span>
+                  <span className="text-lg">Observa el patrón durante el tiempo indicado</span>
+                </li>
+                <li className="flex items-start gap-2 bg-white p-3 rounded-lg shadow">
+                  <span className="text-green-500 text-xl mt-1">3️⃣</span>
                   <span className="text-lg">Memoriza las posiciones de las celdas llenas</span>
                 </li>
                 <li className="flex items-start gap-2 bg-white p-3 rounded-lg shadow">
-                  <span className="text-green-500 text-xl mt-1">✓</span>
+                  <span className="text-green-500 text-xl mt-1">4️⃣</span>
                   <span className="text-lg">Haz clic en las celdas para recrear el patrón</span>
                 </li>
                 <li className="flex items-start gap-2 bg-white p-3 rounded-lg shadow">
-                  <span className="text-green-500 text-xl mt-1">✓</span>
+                  <span className="text-green-500 text-xl mt-1">5️⃣</span>
                   <span className="text-lg">¡Necesitas 80% de precisión para avanzar!</span>
                 </li>
               </ul>
